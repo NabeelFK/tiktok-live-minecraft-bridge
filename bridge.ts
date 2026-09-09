@@ -72,7 +72,7 @@ const VERIFY = process.argv.includes('--verify');
 //
 // Trimming is by CODE POINT, not by UTF-16 unit: cutting at 24 units can land in the
 // middle of a surrogate pair and emit half a character.
-function sanitize(s: string): string {
+export function sanitize(s: string): string {
   const clean = s.replace(/[^\p{L}\p{N}_ .-]/gu, '').trim();
   return [...clean].slice(0, 24).join('') || 'someone';
 }
@@ -88,7 +88,7 @@ const shortPath = (p: string) => {
 const pickVariant = (variants: PricedVariant[], unitCoins: number) =>
   [...variants].sort((a, b) => b.minCoins - a.minCoins).find((v) => unitCoins >= v.minCoins);
 
-function resolve(giftName: string, repeatCount: number, diamonds: number): string[] {
+export function resolve(giftName: string, repeatCount: number, diamonds: number): string[] {
   const k = key(giftName);
   const n = Math.max(repeatCount, 1);
 
@@ -175,20 +175,100 @@ function enqueue(cmds: string[]) {
 
 // ---------- which scheduler the gift map gets ----------
 // later() in gift-helpers.ts is a hole the engine fills, exactly once, here.
-// A normal run schedules a timer that enqueues the commands when it fires. --verify
-// collects them instead, so verifyMode can syntax-check the delayed stages of a gift
-// in the same pass as its immediate commands.
+// A normal run schedules a real timer. --verify collects the payloads instead, so
+// verifyMode can syntax-check the delayed stages of a gift in the same pass as its
+// immediate commands.
 //
 // Installed at module load, before any mode can run an action, so a gift can never
 // reach later() before a scheduler exists. If one ever did, later() throws rather
 // than quietly dropping the commands.
 const deferredCollected: Deferred[] = [];
 
+// A gift is not finished when its first commands go out. BURIED seals the pit 2.5s
+// after it opens it, and THE FINALE runs for nine seconds across five stages. Each
+// pending stage is a promise the bridge has made and not yet kept, so they are
+// tracked rather than left to anonymous timers: code that shuts down without knowing
+// what is outstanding drops it silently, and silent loss is the failure this project
+// keeps finding. One later() call is one stage, however many commands it carries.
+type PendingStage = { firesAt: number; commands: number; timer: NodeJS.Timeout };
+const pendingStages = new Set<PendingStage>();
+
+export function scheduleStage(ms: number, cmds: string[]) {
+  const stage: PendingStage = {
+    firesAt: Date.now() + ms,
+    commands: cmds.length,
+    timer: setTimeout(() => {
+      pendingStages.delete(stage);
+      if (!shuttingDown) enqueue(cmds);
+    }, ms),
+  };
+  pendingStages.add(stage);
+}
+
+/** Cancel every outstanding stage. Called on shutdown, after saying what is being lost. */
+export function cancelPendingStages() {
+  for (const stage of pendingStages) clearTimeout(stage.timer);
+  pendingStages.clear();
+}
+
+/** What is still owed: how many stages, how many commands, how far off the last one is. */
+export function pendingStageSummary() {
+  const now = Date.now();
+  let commands = 0;
+  let longestMs = 0;
+  for (const stage of pendingStages) {
+    commands += stage.commands;
+    longestMs = Math.max(longestMs, stage.firesAt - now);
+  }
+  return { stages: pendingStages.size, commands, longestMs: Math.max(0, longestMs) };
+}
+
 installScheduler(
   VERIFY
     ? (ms, cmds) => { for (const cmd of cmds) deferredCollected.push({ ms, cmd }); }
-    : (_ms, cmds) => { setTimeout(() => { if (!shuttingDown) enqueue(cmds); }, _ms); },
+    : scheduleStage,
 );
+
+/**
+ * Wait for everything already promised to actually happen: the queue to drain, and
+ * every delayed stage to fire and then drain in its turn.
+ *
+ * It says what it is waiting for. A ten-second silence at the end of a run reads as a
+ * hang; "waiting for 5 delayed stages, 48 commands, last one 9.0s away" reads as the
+ * finale finishing.
+ *
+ * Returns whatever is STILL outstanding if it gives up, so the caller can say so out
+ * loud instead of exiting quietly. The cap matters when the link is down: with no
+ * server to drain into, the queue never empties and this would otherwise wait forever.
+ */
+async function settle(tag: string, capMs = 30_000) {
+  const giveUpAt = Date.now() + capMs;
+  let lastReport = 0;
+
+  for (;;) {
+    const pending = pendingStageSummary();
+    if (!queue.length && pending.stages === 0) break;
+    if (Date.now() >= giveUpAt) break;
+
+    if (pending.stages > 0 && Date.now() - lastReport >= 2_500) {
+      lastReport = Date.now();
+      console.log(
+        `[${tag}] waiting for ${pending.stages} delayed stage(s), ${pending.commands} command(s),` +
+        ` last one ${(pending.longestMs / 1000).toFixed(1)}s away`,
+      );
+    }
+    await sleep(200);
+  }
+
+  // The drain loop takes a batch off the queue BEFORE it sends it, so an empty queue
+  // is not the same as an idle link. Give the last batch a moment to finish landing.
+  await sleep(1_000);
+
+  // Two ways work can still be outstanding, and both are worth saying out loud: stages
+  // that never fired, and commands that fired but never reached a server because the
+  // link was down for the whole wait.
+  return { ...pendingStageSummary(), queued: queue.length };
+}
 
 // Drain whatever the last action() call registered through later(). Draining per
 // action is what keeps each delayed command labelled with the gift it came from.
@@ -492,9 +572,19 @@ async function replayMode(file: string) {
     await sleep(400);
   }
 
-  // let the queue finish before exiting
-  while (queue.length) await sleep(500);
-  await sleep(1500);
+  // Let everything the replay started actually finish. Stopping at "the queue is
+  // empty" is what made --replay unable to replay a gift with delayed stages at all:
+  // BURIED's seal lands 2.5s after the pit opens, and the finale is nine seconds long,
+  // so both were dropped on the floor with nothing printed.
+  const left = await settle('replay');
+  if (left.stages > 0) {
+    console.warn(`[replay] gave up with ${left.stages} delayed stage(s) still pending,` +
+      ` ${left.commands} command(s) that never ran.`);
+  }
+  if (left.queued > 0) {
+    console.warn(`[replay] gave up with ${left.queued} command(s) still queued and undelivered.` +
+      ' The server was not reachable for long enough to drain them.');
+  }
   console.log(`[replay] done. sent=${stats.sent} expired=${stats.expired} dropped=${stats.dropped}`);
   await shutdown(0);
 }
@@ -797,14 +887,27 @@ async function keysMode(catalogPath: string) {
 
 async function shutdown(code = 0) {
   if (shuttingDown) return;
+
+  // Ctrl+C two seconds after a BURIED gift, or four seconds into the finale, means
+  // stages that were promised will never run. Interactive quits should not hang for
+  // nine seconds waiting, so this warns instead of waiting: the run is abandoned on
+  // purpose, and now it is abandoned out loud. --replay, which nobody is watching,
+  // waits properly through settle() instead.
+  const pending = pendingStageSummary();
   shuttingDown = true;
+  if (pending.stages > 0) {
+    console.warn(`\n[bridge] WARNING: quitting with ${pending.stages} delayed stage(s) outstanding.` +
+      ` ${pending.commands} command(s) will never run; the last was` +
+      ` ${(pending.longestMs / 1000).toFixed(1)}s away.`);
+    console.warn('[bridge] Gifts like BURIED and THE FINALE finish seconds after they start, so a' +
+      ' sequence cut off here leaves the world part-way through it.');
+  }
+  cancelPendingStages();
+
   console.log(`\n[bridge] shutting down. sent=${stats.sent} rejected=${stats.rejected} expired=${stats.expired} dropped=${stats.dropped} reconnects=${stats.reconnects} followsRateLimited=${stats.followsDropped}`);
   await rcon?.end().catch(() => {});
   process.exit(code);
 }
-process.on('SIGINT', () => { void shutdown(0); });
-process.on('SIGTERM', () => { void shutdown(0); });
-
 const args = process.argv.slice(2);
 const argAfter = (flag: string) => {
   const i = args.indexOf(flag);
@@ -840,19 +943,6 @@ to .env and fill it in. Shell variables override the file. See docs/SETUP.md.
 Before a stream: --keys, then --verify, then --test. README.md explains why all three.`);
 }
 
-for (const a of args) {
-  if (a.startsWith('-') && !KNOWN_FLAGS.has(a)) {
-    console.error(`fatal: unknown option ${a}\n`);
-    usage();
-    process.exit(1);
-  }
-}
-
-if (args.includes('--help') || args.includes('-h')) {
-  usage();
-  process.exit(0);
-}
-
 const liveUser = argAfter('--user') ?? TIKTOK_USER;
 
 const MODE =
@@ -874,15 +964,6 @@ function configError(msg: string): never {
   process.exit(1);
 }
 
-// --keys reads a saved catalog and --spy only records payloads. Neither sends a command,
-// so neither needs to know who the player is.
-if (MODE !== 'keys' && MODE !== 'spy' && !MC_PLAYER) {
-  configError('MC_PLAYER is not set. It is your exact in-game name, case sensitive, and every command targets it.');
-}
-if (MODE === 'live' && !liveUser) {
-  configError('no TikTok handle to watch: set TIKTOK_USER, or pass --user <name>.');
-}
-
 // `--keys` takes an OPTIONAL catalog path. Without this guard, `--keys --dry` would try to
 // read a catalog called "--dry" and fail in a confusing way.
 const argPath = (flag: string) => {
@@ -890,15 +971,46 @@ const argPath = (flag: string) => {
   return v && !v.startsWith('--') ? v : undefined;
 };
 
-const run =
-  MODE === 'keys'     ? keysMode(argPath('--keys') ?? CATALOG_DEFAULT)
-  : MODE === 'verify' ? verifyMode()
-  : MODE === 'test'   ? testMode()
-  : MODE === 'spy'    ? spyMode(argAfter('--spy')!)
-  : MODE === 'replay' ? replayMode(argAfter('--replay')!)
-  : liveMode(liveUser);
+// ---------- run ----------
+// Everything with a side effect lives behind this guard. bridge.test.ts IMPORTS this
+// file to test resolve() and sanitize() offline, and importing it must not parse argv,
+// must not exit over a missing MC_PLAYER, and must not start a mode.
+if (require.main === module) {
+  for (const a of args) {
+    if (a.startsWith('-') && !KNOWN_FLAGS.has(a)) {
+      console.error(`fatal: unknown option ${a}\n`);
+      usage();
+      process.exit(1);
+    }
+  }
 
-run.catch((e) => {
-  console.error('fatal:', e?.message ?? e);
-  process.exit(1);
-});
+  if (args.includes('--help') || args.includes('-h')) {
+    usage();
+    process.exit(0);
+  }
+
+  // --keys reads a saved catalog and --spy only records payloads. Neither sends a
+  // command, so neither needs to know who the player is.
+  if (MODE !== 'keys' && MODE !== 'spy' && !MC_PLAYER) {
+    configError('MC_PLAYER is not set. It is your exact in-game name, case sensitive, and every command targets it.');
+  }
+  if (MODE === 'live' && !liveUser) {
+    configError('no TikTok handle to watch: set TIKTOK_USER, or pass --user <name>.');
+  }
+
+  process.on('SIGINT', () => { void shutdown(0); });
+  process.on('SIGTERM', () => { void shutdown(0); });
+
+  const run =
+    MODE === 'keys'     ? keysMode(argPath('--keys') ?? CATALOG_DEFAULT)
+    : MODE === 'verify' ? verifyMode()
+    : MODE === 'test'   ? testMode()
+    : MODE === 'spy'    ? spyMode(argAfter('--spy')!)
+    : MODE === 'replay' ? replayMode(argAfter('--replay')!)
+    : liveMode(liveUser);
+
+  run.catch((e) => {
+    console.error('fatal:', e?.message ?? e);
+    process.exit(1);
+  });
+}

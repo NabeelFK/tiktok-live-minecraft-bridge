@@ -7,7 +7,10 @@ node_modules/
 !.env.example
 
 # --spy recordings. These contain real viewers' display names and ids: keep them local.
+# The one exception is the hand-written sample under examples/, which has no real data
+# in it and is the only recording a stranger can run --replay against.
 *.jsonl
+!examples/*.jsonl
 
 # a Minecraft server, if you unpack one inside this folder
 *.jar

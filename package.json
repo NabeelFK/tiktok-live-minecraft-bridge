@@ -9,13 +9,14 @@
     "node": ">=20"
   },
   "scripts": {
+    "test": "tsx bridge.test.ts",
+    "typecheck": "tsc --noEmit",
     "keys": "tsx bridge.ts --keys",
     "verify": "tsx bridge.ts --verify",
-    "test": "tsx bridge.ts --test",
+    "sandbox": "tsx bridge.ts --test",
     "spy": "tsx bridge.ts --spy",
     "replay": "tsx bridge.ts --replay",
-    "live": "tsx bridge.ts",
-    "typecheck": "tsc --noEmit"
+    "live": "tsx bridge.ts"
   },
   "dependencies": {
     "dotenv": "17.4.2",

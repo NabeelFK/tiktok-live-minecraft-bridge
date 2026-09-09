@@ -45,6 +45,7 @@ The bridge is the only piece in this repo. The other two are Minecraft, and
 | File | What it is |
 |---|---|
 | `bridge.ts` | The engine: connection handling, the rate-limited command queue, and every mode. |
+| `bridge.test.ts` | Offline tests for the logic that has produced the most bugs. `npm test`. |
 | `env.ts` | Loads `.env` and resolves the four configuration values. Everything else imports them from here. |
 | `gift-map.ts` | **The file you edit.** Which gift runs which commands, what each costs, price gates. |
 | `gift-helpers.ts` | The small builders the map is written in (`at`, `banner`, `rep`, `ring`, `later`). |
@@ -53,21 +54,40 @@ The bridge is the only piece in this repo. The other two are Minecraft, and
 | `fake-rcon.js` | A fake RCON server, for testing the bridge's reconnect behaviour with no Minecraft. |
 | `docs/SETUP.md` | First-time setup, for someone who has never run a Minecraft server. |
 | `docs/GOTCHAS.md` | The silent failures. Read this before writing your own gifts. |
+| `examples/` | A hand-written sample recording, so `--replay` works before you have anything. |
 | `.env.example` | Template for `.env`, with notes on each variable. Copy it, fill it in. |
 
 ---
 
 ## Quickstart
 
-Assumes a Paper server with RCON enabled and a client joined to it. If you do not have
-that yet, do [docs/SETUP.md](docs/SETUP.md) first - it is the harder half.
+### First, see it work with nothing set up
+
+Before a Minecraft server, before a TikTok account, before anything:
 
 ```sh
 git clone https://github.com/NabeelFK/tiktok-live-minecraft-bridge.git
 cd tiktok-live-minecraft-bridge
 npm ci
-cp .env.example .env      # then fill it in
+cp .env.example .env       # put any name in MC_PLAYER; --dry sends nothing anywhere
+npm test                   # the offline test suite, about a second
+npx tsx bridge.ts --replay examples/sample-gifts.jsonl --dry
 ```
+
+That last command feeds a hand-written recording through the exact code path a real gift
+takes and prints every Minecraft command it would send. It is the whole pipeline, minus
+the two halves you have not set up yet. [examples/README.md](examples/README.md) explains
+what each line of the sample is for, including the streak that is deliberately ignored,
+the two gifts that share one name, and the malformed payloads.
+
+It takes about fifteen seconds, because the last two gifts do not finish when their first
+commands go out: one seals a pit 2.5 seconds later and the other is a nine-second staged
+finale. The replay waits for them and prints what it is waiting for.
+
+### Then the real thing
+
+The rest assumes a Paper server with RCON enabled and a client joined to it. If you do
+not have that yet, do [docs/SETUP.md](docs/SETUP.md) - it is the harder half.
 
 Four variables, all documented in `.env.example`:
 
@@ -94,9 +114,18 @@ npx tsx bridge.ts --test      # type gift names by hand and watch what happens
 npx tsx bridge.ts             # live
 ```
 
-There are npm scripts for the same things: `npm run keys`, `npm run verify`, `npm test`,
-`npm run live`, and `npm run spy <handle>` / `npm run replay <file.jsonl>` for the two
-that take an argument.
+npm scripts for the same things, plus the two checks that need nothing at all:
+
+| Script | Runs |
+|---|---|
+| `npm test` | The offline test suite. No server, no network, under a second. |
+| `npm run typecheck` | `tsc --noEmit`. |
+| `npm run keys` | `--keys` against the shipped catalog. |
+| `npm run verify` | `--verify`. Needs the server. |
+| `npm run sandbox` | `--test`, the interactive one where you type gift names. |
+| `npm run live` | Live mode. |
+| `npm run spy <handle>` | `--spy`. |
+| `npm run replay <file>` | `--replay`. |
 
 ---
 
