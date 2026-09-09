@@ -166,7 +166,7 @@ Run these in-game (or from the server console, without the leading slash):
 ```
 
 Without this, every command the bridge runs prints a confirmation into chat. During a
-20,000-coin finale that is 55 commands in nine seconds and your chat becomes a wall of
+7,000-coin finale that is 55 commands in nine seconds and your chat becomes a wall of
 grey text. The gift banners the bridge sends are `tellraw` messages and still show.
 
 ```
@@ -287,8 +287,22 @@ npx tsx bridge.ts --keys
 ```
 
 That reads a saved gift catalog and needs neither the server nor the network. It should
-end with `[keys] clean`. If it complains about dead keys, read the region note in the
-[README](../README.md) - the catalog shipped here is Canadian.
+end with `[keys] clean`.
+
+If it reports dead keys, or warns that the catalog is stale, the catalog is probably
+behind the real gift panel rather than the map being wrong. The file shipped here is
+Canadian and dated, and TikTok retires gifts without notice. Fix it at the source, while
+your stream is live:
+
+```sh
+npx tsx bridge.ts --catalog
+```
+
+That connects to your own room, reads the gift panel your viewers are actually looking
+at, and writes it over the catalog file. Then run `--keys` again. **This is the
+recommended way to keep the catalog current**, and the only one that reflects your
+region as of today. `catalog-scrape.js` still works and needs no live stream, but it
+reads a third-party website rather than the panel itself.
 
 ```sh
 npx tsx bridge.ts --verify
@@ -305,7 +319,7 @@ npx tsx bridge.ts --test
 
 Then type `rose` and watch. If TNT appears next to you, all three pieces are talking.
 
-Try `handheart` to watch the buried effect, and `reddevilcorgi` for the finale. Watch
+Try `handheart` to watch the buried effect, and `sportscar` for the finale. Watch
 them, do not just read the console: a command can be valid and reachable and still do
 nothing visible. See [GOTCHAS.md](GOTCHAS.md).
 
@@ -340,7 +354,7 @@ valid; then check the name.
 **`Outdated client` / `Outdated server`** - client and server versions differ. Section 4.
 
 **Gifts arrive but the wrong effect fires** - your region's catalog differs from the one
-shipped here. Regenerate it with `catalog-scrape.js` and run `--keys`.
+shipped here. Refresh it with `--catalog` while you are live, then run `--keys`.
 
 **Live mode says the route is paid-tier only** - Euler Stream is refusing the request on
 the free tier. This does not fix itself by retrying; the bridge stops rather than burning

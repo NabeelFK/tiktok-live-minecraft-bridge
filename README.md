@@ -49,7 +49,7 @@ The bridge is the only piece in this repo. The other two are Minecraft, and
 | `env.ts` | Loads `.env` and resolves the four configuration values. Everything else imports them from here. |
 | `gift-map.ts` | **The file you edit.** Which gift runs which commands, what each costs, price gates. |
 | `gift-helpers.ts` | The small builders the map is written in (`at`, `banner`, `rep`, `ring`, `later`). |
-| `gifts-CA.json` | A dated snapshot of one region's gift catalog. Input to `--keys`. Regenerate your own. |
+| `gifts-CA.json` | A dated snapshot of one region's gift panel. Input to `--keys`. Refresh it with `--catalog`. |
 | `catalog-scrape.js` | Browser-console snippet that produces a fresh `gifts-<REGION>.json`. |
 | `fake-rcon.js` | A fake RCON server, for testing the bridge's reconnect behaviour with no Minecraft. |
 | `docs/SETUP.md` | First-time setup, for someone who has never run a Minecraft server. |
@@ -137,7 +137,8 @@ npm scripts for the same things, plus the two checks that need nothing at all:
 | `--spy <user>` | TikTok | Connects to anyone's live stream, prints raw gift and follow payloads, and records them to `spy-<user>-<timestamp>.jsonl` in the directory you ran it from. No Minecraft involved. Use it on a busy stream to collect real payloads. That file holds real viewers' display names and ids, so it is gitignored: keep it local. |
 | `--replay <file.jsonl>` | server | Feeds a recorded `.jsonl` back through the exact handler live mode uses. This is how the live code path gets tested without being live. Pair with `--dry` and it needs no server, though it still needs `MC_PLAYER`, since the commands it builds name the player. |
 | `--verify` | server | Syntax-checks every command in the map against your actual server version and runs none of them. Each command is wrapped in a selector that matches nothing, so the server parses it in full and then declines. Delayed stages are included. Exit code 1 on any failure. |
-| `--keys [catalog.json]` | nothing | Checks the map against a region's gift catalog: keys no gift produces, two gifts colliding on one key, and prices that have drifted. Offline, no server, deterministic. Exit code 1 on any failure. |
+| `--keys [catalog.json]` | nothing | Checks the map against a region's gift catalog: keys no gift produces, two gifts colliding on one key, and prices that have drifted. Offline, no server, deterministic. Warns when the catalog is more than about a month old. Exit code 1 on any failure. |
+| `--catalog [user]` | TikTok | Connects to a live room, reads the gift panel that room actually offers, and writes it over the catalog file `--keys` reads. Defaults to `TIKTOK_USER`, so pointed at your own stream it captures exactly what your viewers see. Prints what changed since the last capture: gifts added, gifts gone, prices moved. `--out <path>` and `--region <code>` override the destination and the stamped region. |
 | *(no flag)* | both | Live mode. |
 
 Flags that combine with any mode: `--dry` logs commands instead of sending them,
@@ -146,9 +147,14 @@ as this table. An unrecognised flag is an error, not a silent fall-through to li
 
 ### Pre-stream checklist
 
-Run these three, in this order, every time. They fail in different ways and none of them
+Run these, in this order, every time. They fail in different ways and none of them
 substitutes for another.
 
+0. **`--catalog`** - while your stream is live. Refreshes the gift catalog from the room's
+   own panel, so the check below is against reality rather than against a file. Skip it
+   and `--keys` is comparing your map to a photograph: gifts get retired and renamed with
+   no notice, and a stale catalog does not fail, it agrees with you. Four mapped gifts in
+   this repo were unreachable for three months exactly that way.
 1. **`--keys`** - fast, offline, no server. Catches an effect that can never fire because
    no gift in your region produces that key. This failure is invisible at runtime: the
    gift just falls through to the coin-value fallback and does something plausible.
@@ -187,10 +193,20 @@ breaks are silent, and every entry in that file is a bug that actually shipped.
 names and prices are region-specific, and TikTok changes them. If you are anywhere else,
 it is the wrong catalog and `--keys` will be lying to you.
 
-Generate your own: open the gift page for your region, paste `catalog-scrape.js` into the
-browser console, and it downloads `gifts-<REGION>.json`. Then
-`npx tsx bridge.ts --keys gifts-XX.json`. The header of `catalog-scrape.js` explains why
-this is a paste-into-the-console snippet and not an HTTP request.
+Get your own, in order of preference:
+
+```sh
+npx tsx bridge.ts --catalog        # while you are live: reads your room's own panel
+```
+
+That is the only source that is both your region and current, and it tells you what
+changed since last time. If you are not live, `catalog-scrape.js` still works: open the
+gift page for your region, paste it into the browser console, and it downloads
+`gifts-<REGION>.json`, then `npx tsx bridge.ts --keys gifts-XX.json`. The header of that
+file explains why it is a paste-into-the-console snippet and not an HTTP request.
+
+Either way the file is dated the moment you make it. `--keys` warns when it is more than
+about a month old.
 
 ---
 
@@ -219,7 +235,9 @@ Smaller things worth knowing:
   breaking changes between releases and its npm version numbers do not line up with the
   API generations its documentation describes, so a `^` range is a live grenade. Upgrade
   deliberately, then re-run `--spy` and check the field paths still hold.
-- Gift catalogs are per region and dated. See above.
+- Gift catalogs are per region and dated, and gifts get retired. Four of this map's 22
+  gifts were retired out from under it in three months. `--catalog` is the fix, the coin
+  tier fallback is the safety net, and `--keys` now warns when the file is old.
 - RCON is a plaintext admin protocol with no rate limiting and no scoping. It is bound to
   `127.0.0.1` here. Do not port-forward it and do not put its password anywhere public.
 - The bridge trusts what TikTok sends it. Display names are sanitized before they reach a

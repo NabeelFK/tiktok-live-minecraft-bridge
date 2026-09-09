@@ -46,10 +46,10 @@ import {
 // Every key in GIFTS must appear here. --keys fails on a missing entry.
 export const ASSUMED_COINS: Record<string, number> = {
   rose: 1, tiktok: 1, gg: 1, icecreamcone: 1, heartme: 1,
-  fingerheart: 5, friendshipnecklace: 10, perfume: 20, doughnut: 30, bouncingball: 45,
+  fingerheart: 5, friendshipnecklace: 10, perfume: 20, doughnut: 30, fistbump: 90,
   papercrane: 99, hatandmustache: 99, loveyou: 199, handheart: 100,
-  sunglasses: 199, corgi: 299, lovecall: 299, moneygun: 500, swan: 699,
-  train: 899, galaxy: 1000, reddevilcorgi: 20000,
+  balloons: 200, corgi: 299, celloromance: 299, moneygun: 500, swan: 699,
+  train: 899, galaxy: 1000, sportscar: 7000,
 };
 
 export const GIFTS: Record<string, Action> = {
@@ -149,10 +149,15 @@ export const GIFTS: Record<string, Action> = {
   // No longer nether-specific: this is a genuine save at any point in the run,
   // whether the player is on fire, at half a heart, or mid-fight.
   //
-  // Key was `coffee` (assumed 30). Coffee does not exist in the CA gift catalog at
-  // all, so the effect was unreachable in this region. Moved to Bouncing Ball, which
-  // is real and costs 45. Effect unchanged.
-  bouncingball: () => [
+  // Key history: `coffee` (30) was never a CA gift at all. `bouncingball` (45) was,
+  // in the June 2026 catalog, and has since been retired - a live gift panel checked
+  // by hand in September 2026 does not list it. Now Fist Bump, 90 coins, confirmed
+  // present in the panel. Effect unchanged; the price doubled.
+  //
+  // At 90 this is the most expensive gift in the time-loss band and sits nine coins
+  // under the resource-loss band, so a viewer choosing between helping and hurting
+  // pays almost the same either way. That is a deliberate cliff, not an accident.
+  fistbump: () => [
     banner('SECOND WIND', 'green'),
     `effect give ${MC_PLAYER} minecraft:regeneration 60 3`,
   ],
@@ -222,7 +227,10 @@ export const GIFTS: Record<string, Action> = {
   // PITFALL. The floor stops existing, 12 blocks straight down. Devastating on a
   // bridge, nearly free in a cave, so viewers learn to time it.
   // 5x12x5 = 300 blocks, well inside the 32768 fill limit.
-  sunglasses: () => [
+  //
+  // Key was `sunglasses` (199), retired since the June 2026 catalog. Now Balloons at
+  // 200, confirmed in a live panel. One coin more, same band, same effect.
+  balloons: () => [
     banner('FLOOR GONE', 'red'),
     at('fill ~-2 ~-1 ~-2 ~2 ~-12 ~2 air'),
   ],
@@ -244,12 +252,13 @@ export const GIFTS: Record<string, Action> = {
   // HELP 3 of 4. THE IRON KIT. Full iron armour, sword and pickaxe.
   // The "finally, one nice thing" gift, and the answer to the wipes in the band below.
   //
-  // Key was `dancingflower` (assumed 199). Dancing Flower does not exist in the CA
-  // gift catalog, so the effect was unreachable in this region. Moved to Love Call,
-  // which is real and costs 299. Effect unchanged, but note the price rose: this now
-  // sits level with `corgi` (299) rather than just above the 99-199 wipe band it was
-  // designed to answer. It is still the cheapest gear-restoring HELP in the map.
-  lovecall: () => [
+  // Key history: `dancingflower` (199) was never a CA gift. `lovecall` (299) was, and
+  // has since been retired. Now Cello Romance, also 299, confirmed in a live panel.
+  // Effect and price unchanged from the gift it replaces.
+  //
+  // It sits level with `corgi` (299) rather than just above the 99-199 wipe band it
+  // answers, and it is still the cheapest gear-restoring HELP in the map.
+  celloromance: () => [
     banner('IRON KIT', 'aqua'),
     `give ${MC_PLAYER} iron_helmet 1`,
     `give ${MC_PLAYER} iron_chestplate 1`,
@@ -296,11 +305,14 @@ export const GIFTS: Record<string, Action> = {
     `effect give ${MC_PLAYER} minecraft:darkness 20 0`,
   ],
 
-  // ═══════════════ THE FINALE. 20,000 coins. ═══════════════
-  // Key was `rocket` (20,000). Rocket does not exist in the CA gift catalog, so the
-  // whole finale was unreachable in this region. Moved to Red Devil Corgi, which is
-  // real and also costs 20,000. Effect unchanged.
-  // Not to be confused with `corgi` (299, RELOCATE) - different gift, different key.
+  // ═══════════════ THE FINALE. 7,000 coins. ═══════════════
+  // Key history: `rocket` (20,000) was never a CA gift. `reddevilcorgi` (20,000) was,
+  // and has since been retired. Now Sports Car at 7,000, confirmed in a live panel.
+  //
+  // THE PRICE FELL BY TWO THIRDS. At 20,000 this fired approximately never; at 7,000
+  // it is reachable, which changes what the sequence has to survive. It summons 20
+  // withers and enqueues ~57 commands over nine seconds, and nothing in here stops a
+  // second one starting while the first is still running. See docs/GOTCHAS.md.
   // Explicitly NOT a crash and NOT a kill: a crash is dead air and a possibly
   // corrupted world, and dying instantly is over before anyone looks up.
   // This is a nine-second staged sequence, and the player survives all of it.
@@ -311,7 +323,7 @@ export const GIFTS: Record<string, Action> = {
   // firework_rocket entities: fireworks need a nested item-component NBT blob to
   // produce any visible explosion, and that is exactly the kind of version-sensitive
   // structure that silently does nothing (see the fuse rename above).
-  reddevilcorgi: () => {
+  sportscar: () => {
     const boom = (r: number) => ring(r, 8, (dx, dz) => at(`summon lightning_bolt ~${dx} ~ ~${dz}`));
     const puff = (p: string, spread: number, count: number, y = 2) =>
       at(`particle minecraft:${p} ~ ~${y} ~ ${spread} ${spread} ${spread} 0.6 ${count} force`);
@@ -338,7 +350,7 @@ export const GIFTS: Record<string, Action> = {
     later(9_000, [
       puff('firework', 6, 800, 4),
       at('playsound minecraft:ui.toast.challenge_complete master @a ~ ~ ~ 1 1'),
-      `title ${MC_PLAYER} subtitle {"text":"20,000 coins","color":"yellow"}`,
+      `title ${MC_PLAYER} subtitle {"text":"7,000 coins","color":"yellow"}`,
       `title ${MC_PLAYER} title {"text":"THE FINALE","color":"gold","bold":true}`,
     ]);
 
@@ -357,11 +369,18 @@ export const GIFTS: Record<string, Action> = {
 
 // Unmapped gift: scale by total coin value so a big gift still does something.
 // Tiers reuse the mapped entries so the two can never drift apart.
+//
+// This is the safety net for the thing that just happened: the named gifts in GIFTS are
+// what goes on an on-screen graphic, and TikTok retires and renames them without notice.
+// A gift that has fallen out of the map still produces an effect proportional to what it
+// cost, so a retired key degrades the show rather than breaking it. The top tier tracks
+// the finale's real price, so a gift big enough to buy the finale gets the finale rather
+// than dropping into the middle of the ladder.
 export function fallback(coins: number): string[] {
-  if (coins >= 20000) return GIFTS.reddevilcorgi(1); // the finale
+  if (coins >= 7000) return GIFTS.sportscar(1);     // the finale
   if (coins >= 899)  return GIFTS.galaxy(1);        // run threat: warden
   if (coins >= 299)  return GIFTS.corgi(1);         // position: relocate
-  if (coins >= 199)  return GIFTS.sunglasses(1);    // position: pitfall
+  if (coins >= 199)  return GIFTS.balloons(1);      // position: pitfall
   if (coins >= 99)   return GIFTS.hatandmustache(1); // resource: hotbar wipe
   if (coins >= 20)   return GIFTS.perfume(1);       // time: float
   if (coins >= 5)    return GIFTS.fingerheart(1);   // time: sludge

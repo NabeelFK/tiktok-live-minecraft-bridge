@@ -10,5 +10,5 @@
 {"__event":"gift","gift":{"name":"Rose","diamondCount":1,"type":1},"repeatCount":"twelve","repeatEnd":1,"user":{"nickname":"Example Viewer","id":"example-user-1","displayId":"example.viewer"}}
 {"__event":"gift","gift":{"diamondCount":1,"type":1},"repeatCount":1,"repeatEnd":1,"user":{"nickname":"Sample Account","id":"example-user-4","displayId":"sample.account"}}
 {"__event":"gift","gift":{"name":"Hand Heart","diamondCount":100,"type":1},"repeatCount":1,"repeatEnd":1,"user":{"nickname":"Demo Watcher","id":"example-user-2","displayId":"demo.watcher"}}
-{"__event":"gift","gift":{"name":"Red Devil Corgi","diamondCount":20000,"type":1},"repeatCount":1,"repeatEnd":1,"user":{"nickname":"Placeholder Fan","id":"example-user-3","displayId":"placeholder.fan"}}
+{"__event":"gift","gift":{"name":"Sports Car","diamondCount":7000,"type":1},"repeatCount":1,"repeatEnd":1,"user":{"nickname":"Placeholder Fan","id":"example-user-3","displayId":"placeholder.fan"}}
 {"__event":"gift","gift":{"name":"Rose","diamondCount":1,"type":1},"repeatCount":1,"repea

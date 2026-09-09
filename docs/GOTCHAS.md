@@ -153,6 +153,24 @@ exist in the streamer's region: `coffee`, `dancingflower`, `rocket` and `handhea
 of them was the 20,000-coin finale, the single most expensive thing in the map. It could
 never have fired.
 
+Then it happened a second time, the other way round, and that is the version worth
+understanding, because the first fix did not prevent it. The catalog was a dated scrape
+of a third-party website. Three months later four *different* mapped gifts had been
+retired from the real panel while the file still listed them at their old prices, so
+`--keys` compared the map against a photograph and reported clean on four effects that
+could no longer fire. **A stale catalog does not fail. It agrees with you.**
+
+**What to do:** check against the panel, not a copy of it. `--catalog` connects to a live
+room and writes the gift list the room itself reports, for the right region, as of now.
+Run it while you are live, then run `--keys`. `--keys` also warns when the file it is
+reading is more than about a month old, because a clean result on a stale file means
+very little.
+
+**And keep the safety net.** `fallback()` scales an unmapped gift by its coin value, so a
+gift that has quietly fallen out of the map still produces something proportional
+instead of nothing. Named gifts are what goes on an on-screen graphic; the coin tiers
+are what keeps the show working when a name changes underneath you.
+
 **Why it is invisible:** an unmapped gift does not error. It falls through to the
 coin-value fallback, which does something plausible for that price tier. A viewer sends
 the 100-coin gift, an effect happens, everybody assumes it was the mapped one. The

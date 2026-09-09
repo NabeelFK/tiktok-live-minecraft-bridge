@@ -19,7 +19,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { setTimeout as sleep } from 'node:timers/promises';
 
-import { cancelPendingStages, pendingStageSummary, resolve, sanitize, scheduleStage } from './bridge';
+import {
+  cancelPendingStages,
+  catalogAgeDays,
+  catalogAge,
+  normalizeCatalogGifts,
+  pendingStageSummary,
+  resolve,
+  sanitize,
+  scheduleStage,
+} from './bridge';
 import { ASSUMED_COINS, GIFTS, PRICED, fallback } from './gift-map';
 import { installScheduler, key, later, rep, type Deferred } from './gift-helpers';
 
@@ -144,8 +153,8 @@ test('fallback() tier boundaries, both sides of every edge', () => {
     [299, 'RELOCATED'],
     [898, 'RELOCATED'],
     [899, 'WARDEN'],
-    [19999, 'WARDEN'],
-    [20000, 'THE FINALE'],
+    [6999, 'WARDEN'],
+    [7000, 'THE FINALE'],
   ];
   for (const [coins, expected] of edges) {
     assert.equal(bannerOf(fallback(coins)), expected, `fallback(${coins})`);
@@ -248,7 +257,7 @@ test('the gifts with delayed stages actually register them', () => {
   assert.equal(buried.length, 1, 'BURIED schedules exactly one command, the stone seal');
   assert.equal(buried[0].ms, 2_500);
 
-  GIFTS.reddevilcorgi(1);
+  GIFTS.sportscar(1);
   const finale = takeDeferred();
   assert.ok(finale.length >= 40, `the finale should stage dozens of commands, got ${finale.length}`);
   assert.deepEqual(
@@ -288,7 +297,7 @@ test('the real scheduler tracks a delayed stage until it has fired', async () =>
 test('a multi-stage gift is outstanding as a whole, not one stage at a time', async () => {
   installScheduler(scheduleStage);
   try {
-    GIFTS.reddevilcorgi(1);
+    GIFTS.sportscar(1);
     const pending = pendingStageSummary();
     assert.equal(pending.stages, 5, 'the finale is five stages');
     assert.ok(pending.commands >= 40, `and dozens of commands, got ${pending.commands}`);
@@ -304,4 +313,67 @@ test('a multi-stage gift is outstanding as a whole, not one stage at a time', as
     installScheduler(collect);
     takeDeferred();
   }
+});
+
+// ---------------------------------------------------------------- catalog
+
+test('normalizeCatalogGifts() reads the spellings the panel has actually used', () => {
+  // The library types the gift list as `any`, and this project has been bitten twice by
+  // field paths moving between versions. TikTok's own gift/list/ endpoint is snake_case
+  // and is passed through unrenamed; other shapes in the same SDK are camelCase.
+  const snake = [{ name: 'Rose', diamond_count: 1 }, { name: 'Sports Car', diamond_count: 7000 }];
+  const camel = [{ giftName: 'Rose', diamondCount: 1 }, { giftName: 'Sports Car', diamondCount: 7000 }];
+  const gallery = [{ name: 'Rose', coin_price: 1 }, { name: 'Sports Car', coin_price: 7000 }];
+  const expected = [{ name: 'Rose', coins: 1 }, { name: 'Sports Car', coins: 7000 }];
+
+  assert.deepEqual(normalizeCatalogGifts(snake), expected);
+  assert.deepEqual(normalizeCatalogGifts(camel), expected);
+  assert.deepEqual(normalizeCatalogGifts(gallery), expected);
+
+  // and the wrappers a future version might hand back instead of a bare array
+  assert.deepEqual(normalizeCatalogGifts({ gifts: snake }), expected);
+  assert.deepEqual(normalizeCatalogGifts({ data: { gifts: snake } }), expected);
+});
+
+test('normalizeCatalogGifts() sorts, so a refreshed catalog diffs cleanly', () => {
+  const out = normalizeCatalogGifts([
+    { name: 'Sports Car', diamond_count: 7000 },
+    { name: 'Rose', diamond_count: 1 },
+    { name: 'Balloons', diamond_count: 200 },
+  ]);
+  assert.deepEqual(out.map((g) => g.name), ['Rose', 'Balloons', 'Sports Car']);
+});
+
+test('normalizeCatalogGifts() REFUSES a shape it does not understand', () => {
+  // Writing a catalog it could not read would be worse than writing none: the catalog
+  // is the file every other check trusts. It has to fail loudly, naming the real keys.
+  assert.throws(() => normalizeCatalogGifts(null), /could not find a gift array/);
+  assert.throws(() => normalizeCatalogGifts([]), /could not find a gift array/);
+  assert.throws(() => normalizeCatalogGifts({ nope: 1 }), /object with keys: nope/);
+  assert.throws(
+    () => normalizeCatalogGifts([{ gift_title: 'Rose', price_in_coins: 1 }]),
+    /Keys on the first entry: gift_title, price_in_coins/,
+  );
+});
+
+test('catalogAge() reports the age of the DATA, not of the file', () => {
+  const now = Date.parse('2026-09-09T00:00:00Z');
+  // The exact trap the shipped catalog fell into: its header was rewritten in September
+  // while the gift list in it was still June's. The file looked one day old and was not.
+  assert.deepEqual(
+    catalogAge({ capturedAt: '2026-09-08', catalogUpdated: 'June 23, 2026' }, now),
+    { days: 78, date: 'June 23, 2026' },
+  );
+  assert.deepEqual(catalogAge({ capturedAt: '2026-09-09' }, now), { days: 0, date: '2026-09-09' });
+  assert.equal(catalogAge({}, now), null, 'no dates at all is not the same as fresh');
+  assert.equal(catalogAge({ capturedAt: 'sometime' }, now), null);
+});
+
+test('catalogAgeDays() is what makes staleness visible', () => {
+  const now = Date.parse('2026-09-09T00:00:00Z');
+  assert.equal(catalogAgeDays('2026-09-09', now), 0);
+  assert.equal(catalogAgeDays('2026-09-08', now), 1);
+  assert.equal(catalogAgeDays('2026-06-23', now), 78, 'the drift that cost four gifts');
+  assert.equal(catalogAgeDays(undefined, now), null, 'no date means no answer, not zero');
+  assert.equal(catalogAgeDays('not a date', now), null);
 });

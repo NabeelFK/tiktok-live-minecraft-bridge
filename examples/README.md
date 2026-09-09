@@ -33,7 +33,7 @@ folder.
 | 10 | `repeatCount: "twelve"` | A number field arriving as a string. This used to throw `RangeError: Invalid array length` and kill the process mid-stream. Now coerced. |
 | 11 | No `gift.name` | What a library field-path change looks like. Prints a one-time warning instead of silently turning every gift into one TNT. |
 | 12 | Hand Heart, 100 coins | BURIED, the cheap **delayed** case: the pit opens now, and the stone seal over your head is scheduled for 2.5 seconds later. |
-| 13 | Red Devil Corgi, 20,000 coins | THE FINALE. Nine seconds, five stages, 40-odd commands scheduled after the first eight. |
+| 13 | Sports Car, 7,000 coins | THE FINALE. Nine seconds, five stages, 40-odd commands scheduled after the first eight. |
 | 14 | A truncated line | What `--spy` leaves behind when it is killed mid-write. Skipped with a warning, not fatal. |
 
 Lines 10, 11 and 14 are the failure modes: a number arriving as a string, a field path
@@ -56,4 +56,4 @@ not hung. If something does have to be abandoned, it says so rather than going q
 
 `--replay --dry` prints commands. For the ones whose *behaviour* is the point, run them
 against a real server and look at the screen: `npm run sandbox`, then type `handheart`
-and watch the seal land, or `reddevilcorgi` and watch the nine seconds.
+and watch the seal land, or `sportscar` and watch the nine seconds.

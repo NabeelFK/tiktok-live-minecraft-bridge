@@ -649,6 +649,152 @@ async function liveMode(username: string) {
 }
 
 
+// ---------- mode: --catalog [username] ----------
+// Pull the gift panel from a live room and write it in the format --keys reads.
+//
+// WHY THIS EXISTS. gifts-CA.json was scraped from a third-party website, and a scrape
+// is a snapshot of somebody else's page. It went stale: four gifts in the map had been
+// retired from the real panel while the file still listed them, so --keys reported
+// clean on four effects that could not fire. The room's own gift list is the panel,
+// for the right region, right now.
+//
+// WHERE THE DATA COMES FROM, read out of the installed library rather than guessed:
+// enableExtendedGiftInfo makes TikTokLiveConnection populate `availableGifts` on
+// connect, and both that and fetchAvailableGifts() resolve to whatever
+// fetchRoomGiftsRoute returns, which is `(await getJsonObjectFromWebcastApi('gift/list/',
+// ...)).data.gifts` - the raw array from TikTok's own endpoint, passed through with no
+// key renaming. So the fields are TikTok's, in TikTok's spelling.
+//
+// The library types that value as `any`, and this repo has been bitten twice by field
+// paths moving between versions, so normalizeCatalogGifts() accepts the spellings that
+// have been seen and REFUSES to write a file it could not read, printing the real keys
+// instead. A catalog written from a shape nobody understood would be worse than no
+// catalog at all: it is the file every other check trusts.
+
+export type CatalogGiftEntry = { name: string; coins: number };
+
+export function normalizeCatalogGifts(raw: unknown): CatalogGiftEntry[] {
+  const list: unknown =
+    Array.isArray(raw) ? raw
+    : Array.isArray((raw as any)?.gifts) ? (raw as any).gifts
+    : Array.isArray((raw as any)?.data?.gifts) ? (raw as any).data.gifts
+    : undefined;
+
+  if (!Array.isArray(list) || list.length === 0) {
+    const shape = raw && typeof raw === 'object' ? `object with keys: ${Object.keys(raw as object).join(', ')}` : typeof raw;
+    throw new Error(
+      `could not find a gift array in what the library returned (${shape}).\n` +
+      '       The connector\'s gift list has moved. Run --spy and inspect the shape before trusting anything here.',
+    );
+  }
+
+  const gifts: CatalogGiftEntry[] = [];
+  for (const g of list as any[]) {
+    const name = g?.name ?? g?.giftName ?? g?.gift_name;
+    const rawCoins = g?.diamond_count ?? g?.diamondCount ?? g?.coin_price ?? g?.coins;
+    const coins = Math.trunc(Number(rawCoins));
+    if (typeof name === 'string' && name.trim() && Number.isFinite(coins) && coins >= 0) {
+      gifts.push({ name: name.trim(), coins });
+    }
+  }
+
+  if (!gifts.length) {
+    const keys = Object.keys((list as any[])[0] ?? {}).join(', ') || '(none)';
+    throw new Error(
+      `found ${list.length} gift entries but none had a readable name and price.\n` +
+      `       Keys on the first entry: ${keys}\n` +
+      '       Add whichever of those is the name and the coin price to normalizeCatalogGifts().',
+    );
+  }
+
+  // Sorted, so that a refreshed file diffs cleanly against the last one instead of
+  // reshuffling with the panel order.
+  return gifts.sort((a, b) => a.coins - b.coins || a.name.localeCompare(b.name));
+}
+
+/** What changed against the catalog already on disk. This is the part that catches drift. */
+function diffCatalog(before: CatalogGiftEntry[], after: CatalogGiftEntry[]) {
+  const priceOf = (list: CatalogGiftEntry[]) => new Map(list.map((g) => [key(g.name), g] as const));
+  const was = priceOf(before);
+  const now = priceOf(after);
+  const added = after.filter((g) => !was.has(key(g.name)));
+  const removed = before.filter((g) => !now.has(key(g.name)));
+  const repriced = after.filter((g) => {
+    const old = was.get(key(g.name));
+    return old && old.coins !== g.coins;
+  });
+  return { added, removed, repriced };
+}
+
+async function catalogMode(username: string, outPath: string, regionOverride: string) {
+  const { TikTokLiveConnection, SignConfig } = await import('tiktok-live-connector');
+  if (EULER_API_KEY) SignConfig.apiKey = EULER_API_KEY;
+  else console.warn('[catalog] no EULER_API_KEY, using free community sign limits');
+
+  // Whatever is already at the output path, for the diff and for the region default.
+  let previous: any = null;
+  try { previous = JSON.parse(fs.readFileSync(outPath, 'utf8')); } catch { /* first run */ }
+  const region = (regionOverride || previous?.region || 'XX').toUpperCase();
+
+  console.log(`[catalog] connecting to @${username} to read the gift panel`);
+  const tiktok = new TikTokLiveConnection(username, { enableExtendedGiftInfo: true });
+
+  let gifts: CatalogGiftEntry[];
+  try {
+    const state = await tiktok.connect();
+    console.log(`[catalog] connected, roomId ${state.roomId}`);
+    const raw = (tiktok as any).availableGifts ?? await (tiktok as any).fetchAvailableGifts();
+    gifts = normalizeCatalogGifts(raw);
+  } catch (err: any) {
+    console.error(`[catalog] ${err?.message ?? err}`);
+    // "Failed to retrieve Room ID" is what a handle that is not live looks like from
+    // here, and it is the overwhelmingly common reason this fails.
+    if (/offline|not.*live|room id/i.test(err?.message ?? '') || err?.constructor?.name === 'UserOfflineError') {
+      console.error('[catalog] a room only has a gift panel while it is LIVE, and only a live room can');
+      console.error('[catalog] be connected to. Start your stream and run this again, or point --catalog');
+      console.error('[catalog] at someone who is live in your region. Check the handle spelling too.');
+    }
+    await tiktok.disconnect().catch(() => {});
+    return shutdown(1);
+  }
+  await tiktok.disconnect().catch(() => {});
+
+  const coins = gifts.map((g) => g.coins);
+  console.log(`[catalog] ${gifts.length} gifts, ${Math.min(...coins)} to ${Math.max(...coins)} coins`);
+
+  if (previous?.gifts?.length) {
+    const { added, removed, repriced } = diffCatalog(previous.gifts, gifts);
+    const show = (label: string, list: CatalogGiftEntry[]) => {
+      if (!list.length) return;
+      console.log(`[catalog] ${label}: ${list.length}`);
+      for (const g of list.slice(0, 12)) console.log(`            ${g.name} (${g.coins}c)`);
+      if (list.length > 12) console.log(`            ... and ${list.length - 12} more`);
+    };
+    console.log(`[catalog] against the file already on disk (captured ${previous.capturedAt ?? 'unknown'}):`);
+    show('gifts that are new', added);
+    show('gifts that are GONE from the panel', removed);
+    show('gifts whose price changed', repriced);
+    if (!added.length && !removed.length && !repriced.length) console.log('            no changes');
+  }
+
+  const doc = {
+    _readme: 'A dated SNAPSHOT of one region\'s TikTok gift panel, not a live source of truth. It is the input to `npx tsx bridge.ts --keys`, which checks that every key in gift-map.ts is a gift that actually exists at the price the map assumes.',
+    region,
+    source: 'the live gift panel of the connected room, via tiktok-live-connector (enableExtendedGiftInfo)',
+    capturedAt: new Date().toISOString().slice(0, 10),
+    capturedBy: 'npx tsx bridge.ts --catalog',
+    catalogUpdated: new Date().toISOString().slice(0, 10),
+    drifts: 'Gift names and prices are region-specific and TikTok retires and renames them without notice. This file is dated and WILL go stale: four mapped gifts were silently unreachable for months because the file it replaced was three months old. Re-run --catalog before any stream where balance matters.',
+    giftCount: gifts.length,
+    gifts,
+  };
+
+  fs.writeFileSync(outPath, JSON.stringify(doc, null, 1) + '\n');
+  console.log(`[catalog] wrote ${shortPath(outPath)} (region ${region}, captured ${doc.capturedAt})`);
+  console.log(`[catalog] now run: npx tsx bridge.ts --keys ${shortPath(outPath)}`);
+  return shutdown(0);
+}
+
 // ---------- mode: --verify ----------
 // Syntax-checks every command in the map against THIS server without executing any
 // of them. Each command is wrapped in an `execute if entity` whose selector matches
@@ -711,7 +857,7 @@ async function verifyMode() {
   for (const [name, variants] of Object.entries(PRICED))
     for (const v of variants)
       if (v.action) addGift(`${name}@>=${v.minCoins}`, v.action(1));
-  for (const coins of [1, 5, 25, 99, 299, 700, 1000]) addGift(`fallback:${coins}c`, fallback(coins));
+  for (const coins of [1, 5, 25, 99, 299, 700, 1000, 7000]) addGift(`fallback:${coins}c`, fallback(coins));
   add('follow', [banner('NEW FOLLOWER tester', 'green'), `give ${MC_PLAYER} golden_carrot 1`]);
 
   const delayedDupes = delayedCollected - delayedChecked;
@@ -764,6 +910,36 @@ async function verifyMode() {
 // Regenerate one for your own region with catalog-scrape.js.
 const CATALOG_DEFAULT = path.join(__dirname, 'gifts-CA.json');
 
+// A catalog is a photograph of a moving thing. This one went three months without being
+// re-taken and four gifts in the map were retired underneath it, while --keys kept
+// reporting clean, because --keys was checking the map against the photograph rather
+// than against the panel. Age is now part of the answer.
+const CATALOG_STALE_DAYS = 35;
+
+/** Whole days between a catalog date and now, or null if there is no usable date. */
+export function catalogAgeDays(capturedAt: unknown, now = Date.now()): number | null {
+  if (typeof capturedAt !== 'string') return null;
+  const at = Date.parse(capturedAt);
+  if (!Number.isFinite(at)) return null;
+  return Math.floor((now - at) / 86_400_000);
+}
+
+/**
+ * How old the catalog's DATA is, which is not the same as how recently the file was
+ * written. The shipped file is the case in point: its `capturedAt` says the day someone
+ * last rewrote the header, while `catalogUpdated` says June 23, and the gift list is
+ * from June 23. A file rewritten today out of June data is June data.
+ *
+ * So take the OLDEST date the file admits to and report that one.
+ */
+export function catalogAge(doc: any, now = Date.now()): { days: number; date: string } | null {
+  const dated = ['catalogUpdated', 'capturedAt']
+    .map((field) => ({ days: catalogAgeDays(doc?.[field], now), date: String(doc?.[field]) }))
+    .filter((d): d is { days: number; date: string } => d.days !== null);
+  if (!dated.length) return null;
+  return dated.reduce((oldest, d) => (d.days > oldest.days ? d : oldest));
+}
+
 type CatalogGift = { name: string; coins: number };
 
 async function keysMode(catalogPath: string) {
@@ -780,6 +956,19 @@ async function keysMode(catalogPath: string) {
   if (!gifts.length) return console.error('[keys] catalog has no gifts in it'), shutdown(1);
 
   console.log(`\n[keys] catalog ${shortPath(catalogPath)}: region ${doc.region}, ${gifts.length} gifts, dated ${doc.catalogUpdated}`);
+
+  const age = catalogAge(doc);
+  const stale = age !== null && age.days > CATALOG_STALE_DAYS;
+  if (age === null) {
+    console.warn(`[keys] WARNING: this catalog carries no usable date, so its age cannot be`);
+    console.warn(`[keys] checked. Refresh it with --catalog to get one.`);
+  } else if (stale) {
+    console.warn(`[keys] WARNING: this catalog describes the panel as of ${age.date}, which is`);
+    console.warn(`[keys] ${age.days} days ago. TikTok retires and renames gifts without notice, so`);
+    console.warn('[keys] everything below is checked against a photograph of the panel rather than');
+    console.warn('[keys] the panel. A clean run on a stale file means very little.');
+    console.warn('[keys] Refresh it while your stream is live: npx tsx bridge.ts --catalog');
+  }
   console.log(`[keys] checking ${Object.keys(GIFTS).length} map keys\n`);
 
   // Normalized catalog: key -> the distinct coin values gifts with that key are sold at.
@@ -808,6 +997,10 @@ async function keysMode(catalogPath: string) {
       console.log(`  FAIL  ${k.padEnd(20)} no catalog gift normalizes to this` +
         (near.length ? `  (did you mean: ${near.join(', ')}?)` : ''));
       fail.push(`dead key: ${k}`);
+    }
+    if (stale) {
+      console.log('  NOTE  the catalog above is stale. A dead key on a stale catalog often means the');
+      console.log('        catalog is behind the panel, not that the map is wrong. Run --catalog first.');
     }
     console.log('');
   }
@@ -879,7 +1072,12 @@ async function keysMode(catalogPath: string) {
     console.log('');
     return shutdown(1);
   }
-  console.log(`[keys] clean. All ${Object.keys(GIFTS).length} keys are reachable in ${doc.region}, prices match, collisions gated.\n`);
+  console.log(`[keys] clean. All ${Object.keys(GIFTS).length} keys are reachable in ${doc.region}, prices match, collisions gated.`);
+  if (stale) {
+    console.log(`[keys] ...against a catalog ${age!.days} days old. "Clean" means the map agrees with`);
+    console.log('[keys] that file, not with the live panel. Refresh with --catalog before you trust it.');
+  }
+  console.log('');
   return shutdown(0);
 }
 
@@ -919,7 +1117,8 @@ const argAfter = (flag: string) => {
 // mode too: `bridge.ts --help` opened a TikTok connection, and a typo like `--verfiy`
 // silently ran the wrong mode with no clue that it had. Both stop here now.
 const KNOWN_FLAGS = new Set([
-  '--test', '--spy', '--replay', '--verify', '--keys', '--dry', '--user', '--help', '-h',
+  '--test', '--spy', '--replay', '--verify', '--keys', '--catalog',
+  '--dry', '--user', '--out', '--region', '--help', '-h',
 ]);
 
 function usage() {
@@ -931,22 +1130,28 @@ function usage() {
   npx tsx bridge.ts --replay <file>  Feed recorded payloads through the live handler.
   npx tsx bridge.ts --verify         Syntax-check every mapped command. Needs the server.
   npx tsx bridge.ts --keys [file]    Check the map against a gift catalog. Needs nothing.
+  npx tsx bridge.ts --catalog [user] Read the gift panel from a live room and write it to
+                                     the catalog file. Defaults to TIKTOK_USER.
 
-Flags, any mode:
+Flags:
   --dry            Log commands instead of sending them.
   --user <name>    Override TIKTOK_USER for live mode.
+  --out <path>     Where --catalog writes. Defaults to the file --keys reads.
+  --region <code>  Region code to stamp on a catalog. Defaults to the existing file's.
   --help, -h       This text.
 
 Configuration comes from .env in this folder, or from the environment. Copy .env.example
 to .env and fill it in. Shell variables override the file. See docs/SETUP.md.
 
-Before a stream: --keys, then --verify, then --test. README.md explains why all three.`);
+Before a stream: --catalog while you are live, then --keys, then --verify, then --test.
+README.md explains why each one catches something the others cannot.`);
 }
 
 const liveUser = argAfter('--user') ?? TIKTOK_USER;
 
 const MODE =
-  args.includes('--keys')     ? 'keys'
+  args.includes('--keys')      ? 'keys'
+  : args.includes('--catalog') ? 'catalog'
   : args.includes('--verify') ? 'verify'
   : args.includes('--test')   ? 'test'
   : args.includes('--spy')    ? 'spy'
@@ -971,6 +1176,9 @@ const argPath = (flag: string) => {
   return v && !v.startsWith('--') ? v : undefined;
 };
 
+// --catalog takes an OPTIONAL username, the same way --keys takes an optional path.
+const catalogUser = argPath('--catalog') ?? TIKTOK_USER;
+
 // ---------- run ----------
 // Everything with a side effect lives behind this guard. bridge.test.ts IMPORTS this
 // file to test resolve() and sanitize() offline, and importing it must not parse argv,
@@ -989,20 +1197,24 @@ if (require.main === module) {
     process.exit(0);
   }
 
-  // --keys reads a saved catalog and --spy only records payloads. Neither sends a
-  // command, so neither needs to know who the player is.
-  if (MODE !== 'keys' && MODE !== 'spy' && !MC_PLAYER) {
+  // --keys reads a saved catalog, --spy only records payloads, and --catalog only reads
+  // the gift panel. None of them sends a command, so none needs to know who the player is.
+  if (MODE !== 'keys' && MODE !== 'spy' && MODE !== 'catalog' && !MC_PLAYER) {
     configError('MC_PLAYER is not set. It is your exact in-game name, case sensitive, and every command targets it.');
   }
   if (MODE === 'live' && !liveUser) {
     configError('no TikTok handle to watch: set TIKTOK_USER, or pass --user <name>.');
+  }
+  if (MODE === 'catalog' && !catalogUser) {
+    configError('no TikTok handle for --catalog: pass one (--catalog someuser), or set TIKTOK_USER.');
   }
 
   process.on('SIGINT', () => { void shutdown(0); });
   process.on('SIGTERM', () => { void shutdown(0); });
 
   const run =
-    MODE === 'keys'     ? keysMode(argPath('--keys') ?? CATALOG_DEFAULT)
+    MODE === 'keys'      ? keysMode(argPath('--keys') ?? CATALOG_DEFAULT)
+    : MODE === 'catalog' ? catalogMode(catalogUser, argPath('--out') ?? CATALOG_DEFAULT, argPath('--region') ?? '')
     : MODE === 'verify' ? verifyMode()
     : MODE === 'test'   ? testMode()
     : MODE === 'spy'    ? spyMode(argAfter('--spy')!)
