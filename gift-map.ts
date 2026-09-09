@@ -134,13 +134,24 @@ export const GIFTS: Record<string, Action> = {
     `effect give ${MC_PLAYER} minecraft:levitation 20 0`,
   ],
 
-  // BLACKOUT. Weather alone is not an effect, so the night ships with the mobs:
-  // six hostiles on top of the player, and the darkness it sets keeps spawning
-  // more until they fix it. That is the minute this tier is meant to cost.
+  // BLACKOUT. Ten seconds of blindness with six hostiles landing on top of the player,
+  // so the mobs arrive while they cannot be seen. Nothing here touches world state.
+  //
+  // This used to be `time set midnight` plus `weather thunder`. Both are permanent
+  // world changes with no revert, fired by a 30-coin gift that lands all stream: one
+  // send left the world in night and storm until somebody typed a command to undo it.
+  // A gift in this band is supposed to cost about a minute, not the rest of the run.
+  //
+  // On stacking: effects of the same amplifier REFRESH rather than accumulate, so two
+  // sends are not 20 seconds, they are 10 seconds restarted. The risk runs the other
+  // way. At 30 coins, gifts arriving more often than every 10 seconds keep blindness
+  // topped up continuously, and blindness plus the mobs is the harshest combination in
+  // the map for its price. If it reads as unplayable on stream, shorten the duration
+  // before touching anything else - see the note on `galaxy`, which caps its own
+  // vision denial at 20s for the same reason at thirty times the price.
   doughnut: () => [
     banner('BLACKOUT', 'blue'),
-    'time set midnight',
-    'weather thunder',
+    `effect give ${MC_PLAYER} minecraft:blindness 10 0`,
     ...ring(3, 4, (dx, dz) => at(`summon zombie ~${dx} ~ ~${dz}`)),
     ...ring(4, 2, (dx, dz) => at(`summon skeleton ~${dx} ~ ~${dz}`)),
   ],
@@ -366,6 +377,9 @@ export const GIFTS: Record<string, Action> = {
       `effect give ${MC_PLAYER} minecraft:resistance 30 4`,
       `effect give ${MC_PLAYER} minecraft:fire_resistance 30 0`,
       `effect give ${MC_PLAYER} minecraft:slow_falling 30 0`,
+      // Not dead now that `doughnut` no longer sets thunder: nothing in the map sets
+      // weather any more, but a survival world makes its own. Rain hides the particles
+      // and a storm hides the lightning, so the finale clears the sky for itself.
       'weather clear',
       'time set midnight',
       `effect give ${MC_PLAYER} minecraft:levitation 6 1`,
