@@ -44,6 +44,10 @@ for (const file of candidates) {
 /** The .env files that were actually read. Empty when there is no .env anywhere. */
 export const ENV_FILES: readonly string[] = loaded;
 
+/** How to describe a loaded file without printing someone's home directory on stream. */
+const describe = (file: string) =>
+  file === REPO_ENV ? 'the .env next to bridge.ts' : 'the .env in the current directory';
+
 const read = (name: string) => (process.env[name] ?? '').trim();
 
 /** Exact in-game name, case sensitive. Every command targets this player. */
@@ -65,7 +69,8 @@ export const EULER_API_KEY = read('EULER_API_KEY');
  */
 export function envSourceHint(): string {
   return ENV_FILES.length
-    ? `Read ${ENV_FILES.join(' and ')}, so check that the variable is filled in there.`
+    ? `Read ${ENV_FILES.map(describe).join(' and ')}, so check that the variable is filled` +
+      ' in there and not just present.'
     : 'No .env file was found. Copy .env.example to .env in the repo root and fill it in,' +
       ' or set the variable in your shell.';
 }

@@ -50,8 +50,8 @@ const RCON = { host: '127.0.0.1', port: 25575, password: RCON_PASSWORD, timeout:
 const CMDS_PER_SEC = 15;       // commands drained per second. 15 not 8: with MAX_QUEUE at 120,
                                // draining at 8/s meant a full queue was 15s of lag between gift and effect.
 const MAX_QUEUE = 120;         // hard backlog cap, anything past this is dropped.
-                               // NOTE: at CMDS_PER_SEC=8 a full queue is 15s of lag between
-                               // gift and effect. Raise CMDS_PER_SEC to ~15 if that feels bad on stream.
+                               // Sized in SECONDS, not commands: 120 at 15/s is ~8s of
+                               // worst-case lag between a gift and its effect.
 const CMD_TTL_MS = 45_000;     // a queued command older than this is stale, drop it rather than fire it late
 const MAX_CMD_ATTEMPTS = 3;    // per-command retries across reconnects before giving up on it
 
@@ -65,9 +65,24 @@ const VERIFY = process.argv.includes('--verify');
 
 // nicknames are user-controlled and go straight into a server command.
 // strip anything that isn't safe to interpolate. same for gift names off the wire.
+//
+// The allowlist is letters, digits, underscore, space, dot and hyphen. Everything else
+// goes, which covers the two that matter - `"` and `\` would break out of the tellraw
+// JSON - plus control characters, RTL and zero-width marks, emoji and the section sign.
+//
+// Trimming is by CODE POINT, not by UTF-16 unit: cutting at 24 units can land in the
+// middle of a surrogate pair and emit half a character.
 function sanitize(s: string): string {
-  return s.replace(/[^\p{L}\p{N}_ .-]/gu, '').trim().slice(0, 24) || 'someone';
+  const clean = s.replace(/[^\p{L}\p{N}_ .-]/gu, '').trim();
+  return [...clean].slice(0, 24).join('') || 'someone';
 }
+
+// Paths printed for humans. An absolute path here means the console (and anything
+// screen-shared while streaming) shows the operator's home directory and username.
+const shortPath = (p: string) => {
+  const rel = path.relative(process.cwd(), p);
+  return !rel || rel.startsWith('..') ? path.basename(p) : rel;
+};
 
 /** Highest-priced variant this gift can afford, or undefined if it affords none. */
 const pickVariant = (variants: PricedVariant[], unitCoins: number) =>
@@ -129,6 +144,13 @@ function checkReply(cmd: string, reply: string) {
   seenBadCmds.add(head);
   console.error(`[cmd] server rejected: ${cmd}`);
   console.error(`      -> ${r.slice(0, 200)}`);
+  // The server can only say "no player was found"; it cannot say "your MC_PLAYER is
+  // wrong". That is the first-run failure this rejection almost always means, and
+  // without the hint it looks like a broken command rather than a typo in your name.
+  if (/No \w+ (were|was) found|That player/i.test(r)) {
+    console.error(`      MC_PLAYER is currently "${MC_PLAYER}". It must match your in-game name exactly,`);
+    console.error('      including capitalisation, and you must be joined to the server.');
+  }
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -323,13 +345,39 @@ function handleFollow(data: any, tag = 'follow') {
 // Live mode and --replay both go through this. That is the point: --replay executes
 // the exact code path a real gift takes, so live mode is not the only untested path.
 
+// Everything off the wire is untrusted, in two different ways.
+//
+// Text is untrusted because a viewer chooses it: sanitize() handles that.
+// NUMBERS are untrusted because the protocol is reverse-engineered and its field paths
+// have moved between library versions before. A repeatCount that arrives as a string or
+// an object makes Math.max() produce NaN, and NaN reaches `Array(NaN)` inside rep(),
+// which throws RangeError. Thrown from inside a websocket event handler, that is an
+// uncaught exception: the bridge dies in the middle of a stream because one payload was
+// shaped oddly. Coerce here, once, and treat anything unusable as the safe default.
+const num = (v: any, fallbackTo: number) => {
+  const n = Math.trunc(Number(v));
+  return Number.isFinite(n) ? n : fallbackTo;
+};
+
+// A gift with no name at all is the signature of the library's field paths moving under
+// us: every gift would quietly resolve to fallback(1) and the show would degrade to a
+// single TNT per gift with nothing in the log to say why. Say it once, loudly.
+let namelessWarned = false;
+
 function handleGift(data: any, tag = 'gift') {
   // v3 field paths, pinned from real --spy output.
-  const name = data?.gift?.name ?? '';
-  const diamonds = data?.gift?.diamondCount ?? 1;
+  const name = String(data?.gift?.name ?? '');
+  const diamonds = num(data?.gift?.diamondCount, 1);
   const giftType = data?.gift?.type;
-  const repeatCount = data?.repeatCount ?? 1;
-  const sender = sanitize(data?.user?.nickname ?? data?.user?.displayId ?? 'someone');
+  const repeatCount = Math.max(1, num(data?.repeatCount, 1));
+  const sender = sanitize(String(data?.user?.nickname ?? data?.user?.displayId ?? 'someone'));
+
+  if (!name && !namelessWarned) {
+    namelessWarned = true;
+    console.warn(`[${tag}] a gift payload had no gift.name. Every gift will fall through to`);
+    console.warn('        the coin-value fallback until this is fixed. The library\'s field paths');
+    console.warn('        have probably changed: run --spy and compare against docs/GOTCHAS.md.');
+  }
 
   // streakable gifts (giftType 1) fire on every tick of the streak.
   // ignore until repeatEnd, or one rose spam becomes thirty triggers.
@@ -340,6 +388,15 @@ function handleGift(data: any, tag = 'gift') {
   const mapped = resolutionLabel(name, repeatCount, diamonds);
   console.log(`[${tag}] ${sender} sent ${safeName} x${repeatCount} (${mapped}) -> ${cmds.length} commands`);
   enqueue([`tellraw @a {"text":"${sender} sent ${safeName} x${repeatCount}","color":"gray"}`, ...cmds]);
+}
+
+/** Run a payload handler so a bad payload is logged and skipped, never fatal. */
+function guard(what: string, fn: () => void) {
+  try {
+    fn();
+  } catch (err) {
+    console.error(`[${what}] payload handler failed, skipping it:`, (err as Error)?.message ?? err);
+  }
 }
 
 // ---------- mode: --test ----------
@@ -392,7 +449,10 @@ async function spyMode(username: string) {
 
   const out = path.join(process.cwd(), `spy-${username}-${Date.now()}.jsonl`);
   const sink = fs.createWriteStream(out, { flags: 'a' });
-  console.log(`[spy] recording payloads to ${out}`);
+  // Short path on purpose: this line is printed while streaming often enough that the
+  // full path would put the operator's username on screen.
+  console.log(`[spy] recording payloads to ${shortPath(out)} (in the current directory)`);
+  console.log('[spy] that file contains real viewers\' display names and ids. It is gitignored; keep it local.');
 
   const jsonl = (o: any) => JSON.stringify(o, (_k, v) => (typeof v === 'bigint' ? v.toString() : v)) + '\n';
 
@@ -427,8 +487,8 @@ async function replayMode(file: string) {
     let data: any;
     try { data = JSON.parse(line); }
     catch { console.warn(`[replay] line ${i + 1} is not JSON, skipping`); continue; }
-    if (data.__event === 'follow') handleFollow(data, 'replay:follow');
-    else handleGift(data, 'replay');
+    if (data.__event === 'follow') guard('replay:follow', () => handleFollow(data, 'replay:follow'));
+    else guard('replay', () => handleGift(data, 'replay'));
     await sleep(400);
   }
 
@@ -457,8 +517,11 @@ async function liveMode(username: string) {
     if (shuttingDown) return;
     const tiktok = new TikTokLiveConnection(username, { enableExtendedGiftInfo: true });
 
-    tiktok.on(WebcastEvent.GIFT, (data: any) => handleGift(data));
-    tiktok.on(WebcastEvent.FOLLOW, (data: any) => handleFollow(data));
+    // Handlers run inside the library's event emit. An exception thrown here is an
+    // UNCAUGHT exception, not a rejected promise, and it takes the process down mid
+    // stream. One malformed payload is not worth the whole show.
+    tiktok.on(WebcastEvent.GIFT, (data: any) => guard('gift', () => handleGift(data)));
+    tiktok.on(WebcastEvent.FOLLOW, (data: any) => guard('follow', () => handleFollow(data)));
     tiktok.on(ControlEvent.ERROR, (e: any) => console.error('[tiktok] error:', e?.message ?? e));
     tiktok.on(ControlEvent.DISCONNECTED, () => {
       if (shuttingDown) return;
@@ -626,7 +689,7 @@ async function keysMode(catalogPath: string) {
   const gifts: CatalogGift[] = doc?.gifts ?? [];
   if (!gifts.length) return console.error('[keys] catalog has no gifts in it'), shutdown(1);
 
-  console.log(`\n[keys] catalog ${catalogPath}: region ${doc.region}, ${gifts.length} gifts, dated ${doc.catalogUpdated}`);
+  console.log(`\n[keys] catalog ${shortPath(catalogPath)}: region ${doc.region}, ${gifts.length} gifts, dated ${doc.catalogUpdated}`);
   console.log(`[keys] checking ${Object.keys(GIFTS).length} map keys\n`);
 
   // Normalized catalog: key -> the distinct coin values gifts with that key are sold at.
@@ -747,6 +810,49 @@ const argAfter = (flag: string) => {
   const i = args.indexOf(flag);
   return i >= 0 ? args[i + 1] : undefined;
 };
+
+// ---------- argument checking ----------
+// No flag at all means live mode, which used to make every UNRECOGNISED flag mean live
+// mode too: `bridge.ts --help` opened a TikTok connection, and a typo like `--verfiy`
+// silently ran the wrong mode with no clue that it had. Both stop here now.
+const KNOWN_FLAGS = new Set([
+  '--test', '--spy', '--replay', '--verify', '--keys', '--dry', '--user', '--help', '-h',
+]);
+
+function usage() {
+  console.log(`TikTok LIVE -> Minecraft bridge
+
+  npx tsx bridge.ts                  Live mode. Needs TIKTOK_USER and a running server.
+  npx tsx bridge.ts --test           Type gift names by hand. No TikTok.
+  npx tsx bridge.ts --spy <user>     Watch a live stream and record payloads to a .jsonl.
+  npx tsx bridge.ts --replay <file>  Feed recorded payloads through the live handler.
+  npx tsx bridge.ts --verify         Syntax-check every mapped command. Needs the server.
+  npx tsx bridge.ts --keys [file]    Check the map against a gift catalog. Needs nothing.
+
+Flags, any mode:
+  --dry            Log commands instead of sending them.
+  --user <name>    Override TIKTOK_USER for live mode.
+  --help, -h       This text.
+
+Configuration comes from .env in this folder, or from the environment. Copy .env.example
+to .env and fill it in. Shell variables override the file. See docs/SETUP.md.
+
+Before a stream: --keys, then --verify, then --test. README.md explains why all three.`);
+}
+
+for (const a of args) {
+  if (a.startsWith('-') && !KNOWN_FLAGS.has(a)) {
+    console.error(`fatal: unknown option ${a}\n`);
+    usage();
+    process.exit(1);
+  }
+}
+
+if (args.includes('--help') || args.includes('-h')) {
+  usage();
+  process.exit(0);
+}
+
 const liveUser = argAfter('--user') ?? TIKTOK_USER;
 
 const MODE =

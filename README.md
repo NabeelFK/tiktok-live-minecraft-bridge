@@ -105,14 +105,15 @@ that take an argument.
 | Command | Needs | What it does |
 |---|---|---|
 | `--test` | server | Reads gift names from stdin and runs them for real. `rose 5` fires a 5x streak, `mystery !1500` forces the 1500-coin fallback tier, `follow bob` tests the follower reward. This is how you watch an effect and judge whether it reads on camera. |
-| `--spy <user>` | TikTok | Connects to anyone's live stream, prints raw gift and follow payloads, and records them to `spy-<user>-<timestamp>.jsonl`. No Minecraft involved. Use it on a busy stream to collect real payloads. |
+| `--spy <user>` | TikTok | Connects to anyone's live stream, prints raw gift and follow payloads, and records them to `spy-<user>-<timestamp>.jsonl` in the directory you ran it from. No Minecraft involved. Use it on a busy stream to collect real payloads. That file holds real viewers' display names and ids, so it is gitignored: keep it local. |
 | `--replay <file.jsonl>` | server | Feeds a recorded `.jsonl` back through the exact handler live mode uses. This is how the live code path gets tested without being live. Pair with `--dry` and it needs no server, though it still needs `MC_PLAYER`, since the commands it builds name the player. |
 | `--verify` | server | Syntax-checks every command in the map against your actual server version and runs none of them. Each command is wrapped in a selector that matches nothing, so the server parses it in full and then declines. Delayed stages are included. Exit code 1 on any failure. |
 | `--keys [catalog.json]` | nothing | Checks the map against a region's gift catalog: keys no gift produces, two gifts colliding on one key, and prices that have drifted. Offline, no server, deterministic. Exit code 1 on any failure. |
 | *(no flag)* | both | Live mode. |
 
 Flags that combine with any mode: `--dry` logs commands instead of sending them,
-`--user <name>` overrides `TIKTOK_USER` for live mode.
+`--user <name>` overrides `TIKTOK_USER` for live mode. `--help` prints the same summary
+as this table. An unrecognised flag is an error, not a silent fall-through to live mode.
 
 ### Pre-stream checklist
 
