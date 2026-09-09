@@ -25,6 +25,7 @@ import { Rcon } from 'rcon-client';
 import readline from 'node:readline';
 import fs from 'node:fs';
 import path from 'node:path';
+import { EULER_API_KEY, RCON_PASSWORD, TIKTOK_USER, envSourceHint } from './env';
 import { ASSUMED_COINS, GIFTS, PRICED, fallback } from './gift-map';
 import {
   MC_PLAYER,
@@ -38,15 +39,13 @@ import {
 // ---------- config ----------
 // Nothing identifying lives in this file. The four things that are yours - your
 // TikTok handle, your in-game name, your RCON password and your Euler Stream key -
-// are all read from the environment. See .env.example.
+// come from env.ts, which reads them from .env and from the shell environment.
+// See .env.example for the list and docs/SETUP.md for how to fill it in.
+//
+// MC_PLAYER is imported by gift-helpers.ts rather than here, because the gift map
+// interpolates it into nearly every command it builds.
 
-// Your TikTok handle, without the @. Live mode only; --user <name> overrides it.
-const TIKTOK_USER = (process.env.TIKTOK_USER ?? '').trim();
-
-// MC_PLAYER, your exact in-game name, is read in gift-helpers.ts instead, because
-// the gift map interpolates it into nearly every command it builds.
-
-const RCON = { host: '127.0.0.1', port: 25575, password: process.env.RCON_PASSWORD!, timeout: 5000 };
+const RCON = { host: '127.0.0.1', port: 25575, password: RCON_PASSWORD, timeout: 5000 };
 
 const CMDS_PER_SEC = 15;       // commands drained per second. 15 not 8: with MAX_QUEUE at 120,
                                // draining at 8/s meant a full queue was 15s of lag between gift and effect.
@@ -265,7 +264,12 @@ async function connectRcon() {
     void dryDrainLoop();
     return;
   }
-  if (!RCON.password) throw new Error('RCON_PASSWORD env var is not set');
+  if (!RCON.password) {
+    console.error('fatal: RCON_PASSWORD is not set. It is the rcon.password line in your');
+    console.error("       server's server.properties.");
+    console.error(envSourceHint());
+    process.exit(1);
+  }
   void drainLoop();
   const ok = await openRcon();
   if (!ok) console.warn('[rcon] not connected yet, queueing until the server answers');
@@ -384,7 +388,7 @@ async function testMode() {
 async function spyMode(username: string) {
   if (!username) throw new Error('usage: --spy <username>');
   const { TikTokLiveConnection, WebcastEvent, ControlEvent, SignConfig } = await import('tiktok-live-connector');
-  if (process.env.EULER_API_KEY) SignConfig.apiKey = process.env.EULER_API_KEY;
+  if (EULER_API_KEY) SignConfig.apiKey = EULER_API_KEY;
 
   const out = path.join(process.cwd(), `spy-${username}-${Date.now()}.jsonl`);
   const sink = fs.createWriteStream(out, { flags: 'a' });
@@ -444,7 +448,7 @@ async function liveMode(username: string) {
   const { TikTokLiveConnection, WebcastEvent, ControlEvent, SignConfig } = lib;
 
   // No key still works: Euler signs at free community rate limits, a key just raises them.
-  if (process.env.EULER_API_KEY) SignConfig.apiKey = process.env.EULER_API_KEY;
+  if (EULER_API_KEY) SignConfig.apiKey = EULER_API_KEY;
   else console.warn('[tiktok] no EULER_API_KEY, using free community sign limits');
 
   await connectRcon();
@@ -601,9 +605,11 @@ async function verifyMode() {
 // HTTP fetch or a page-summarising tool: they truncate the gift page around 499 coins and
 // report every gift above that as absent, which looks exactly like a real absence.
 
-// Default catalog. Regenerate one for your own region with catalog-scrape.js and
-// pass it as `--keys gifts-XX.json`, or replace this default.
-const CATALOG_DEFAULT = 'gifts-CA.json';
+// Default catalog, resolved next to these source files rather than relative to the
+// directory the command was run from, so `--keys` works from anywhere. An explicit
+// `--keys some/other.json` is still relative to where you are standing, as expected.
+// Regenerate one for your own region with catalog-scrape.js.
+const CATALOG_DEFAULT = path.join(__dirname, 'gifts-CA.json');
 
 type CatalogGift = { name: string; coins: number };
 
@@ -757,6 +763,7 @@ const MODE =
 // command like `execute at  run summon tnt` reach the server and half-work.
 function configError(msg: string): never {
   console.error(`fatal: ${msg}`);
+  console.error(envSourceHint());
   console.error('.env.example lists every variable this bridge reads; docs/SETUP.md walks through setting them.');
   process.exit(1);
 }

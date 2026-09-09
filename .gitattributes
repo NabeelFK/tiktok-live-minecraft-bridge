@@ -1,0 +1,4 @@
+# Keep line endings out of diffs. Without this, saving a file in a Windows editor
+# rewrites every line and a one-word change arrives as a 200-line diff.
+# Everything in this repo is text and is stored and checked out with LF.
+* text=auto eol=lf

@@ -45,6 +45,7 @@ The bridge is the only piece in this repo. The other two are Minecraft, and
 | File | What it is |
 |---|---|
 | `bridge.ts` | The engine: connection handling, the rate-limited command queue, and every mode. |
+| `env.ts` | Loads `.env` and resolves the four configuration values. Everything else imports them from here. |
 | `gift-map.ts` | **The file you edit.** Which gift runs which commands, what each costs, price gates. |
 | `gift-helpers.ts` | The small builders the map is written in (`at`, `banner`, `rep`, `ring`, `later`). |
 | `gifts-CA.json` | A dated snapshot of one region's gift catalog. Input to `--keys`. Regenerate your own. |
@@ -52,6 +53,7 @@ The bridge is the only piece in this repo. The other two are Minecraft, and
 | `fake-rcon.js` | A fake RCON server, for testing the bridge's reconnect behaviour with no Minecraft. |
 | `docs/SETUP.md` | First-time setup, for someone who has never run a Minecraft server. |
 | `docs/GOTCHAS.md` | The silent failures. Read this before writing your own gifts. |
+| `.env.example` | Template for `.env`, with notes on each variable. Copy it, fill it in. |
 
 ---
 
@@ -76,12 +78,12 @@ Four variables, all documented in `.env.example`:
 | `RCON_PASSWORD` | The `rcon.password` from `server.properties` | everything that talks to the server |
 | `EULER_API_KEY` | Euler Stream signing key. Optional, blank works | live mode, `--spy` |
 
-The bridge does not read `.env` on its own. Either set the variables in your shell, or
-let Node read the file for you:
+The bridge loads `.env` from the repo root itself, on startup, in every mode. Filling
+in that file is the whole configuration step: no flag to pass, and it is still there in
+tomorrow's terminal window.
 
-```sh
-npx tsx --env-file=.env bridge.ts --keys
-```
+A variable set in your shell overrides the file, so a one-off is easy:
+`$env:MC_PLAYER = "SomeoneElse"` in PowerShell, `export MC_PLAYER=SomeoneElse` in bash.
 
 Then, in order:
 
@@ -93,7 +95,8 @@ npx tsx bridge.ts             # live
 ```
 
 There are npm scripts for the same things: `npm run keys`, `npm run verify`, `npm test`,
-`npm run live`.
+`npm run live`, and `npm run spy <handle>` / `npm run replay <file.jsonl>` for the two
+that take an argument.
 
 ---
 
@@ -103,7 +106,7 @@ There are npm scripts for the same things: `npm run keys`, `npm run verify`, `np
 |---|---|---|
 | `--test` | server | Reads gift names from stdin and runs them for real. `rose 5` fires a 5x streak, `mystery !1500` forces the 1500-coin fallback tier, `follow bob` tests the follower reward. This is how you watch an effect and judge whether it reads on camera. |
 | `--spy <user>` | TikTok | Connects to anyone's live stream, prints raw gift and follow payloads, and records them to `spy-<user>-<timestamp>.jsonl`. No Minecraft involved. Use it on a busy stream to collect real payloads. |
-| `--replay <file.jsonl>` | server | Feeds a recorded `.jsonl` back through the exact handler live mode uses. This is how the live code path gets tested without being live. Pair with `--dry` and it needs nothing at all. |
+| `--replay <file.jsonl>` | server | Feeds a recorded `.jsonl` back through the exact handler live mode uses. This is how the live code path gets tested without being live. Pair with `--dry` and it needs no server, though it still needs `MC_PLAYER`, since the commands it builds name the player. |
 | `--verify` | server | Syntax-checks every command in the map against your actual server version and runs none of them. Each command is wrapped in a selector that matches nothing, so the server parses it in full and then declines. Delayed stages are included. Exit code 1 on any failure. |
 | `--keys [catalog.json]` | nothing | Checks the map against a region's gift catalog: keys no gift produces, two gifts colliding on one key, and prices that have drifted. Offline, no server, deterministic. Exit code 1 on any failure. |
 | *(no flag)* | both | Live mode. |

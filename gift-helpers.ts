@@ -9,10 +9,12 @@
  * rep, later, clamp, key, and the ALL_TOOLS / EQUIP_SLOTS lists.
  */
 
-// The exact in-game name every command targets, case sensitive. Read from the
-// environment so no personal detail lives in the source. bridge.ts refuses to start
-// any mode that sends commands when this is empty.
-export const MC_PLAYER = (process.env.MC_PLAYER ?? '').trim();
+// The exact in-game name every command targets, case sensitive. It comes from env.ts,
+// which loads .env before anything reads it, so no personal detail lives in the source.
+// bridge.ts refuses to start any mode that sends commands when this is empty.
+// Re-exported so the gift map can import everything it needs from one module.
+import { MC_PLAYER } from './env';
+export { MC_PLAYER };
 
 // `at` reruns the command at the player's position. RCON runs from the server
 // console, which sits at world origin, so without this everything spawns at spawn.

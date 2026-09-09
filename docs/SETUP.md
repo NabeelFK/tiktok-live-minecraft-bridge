@@ -206,48 +206,80 @@ people running many connections at once; a single streamer does not need them.
 Prices and limits are Euler Stream's to change. Check
 [their pricing page](https://www.eulerstream.com/pricing) rather than this paragraph.
 
-## 8. Environment variables on Windows
+## 8. Configuration: the `.env` file
 
-The bridge reads four variables and hardcodes none of them. `.env.example` is the full
-list with notes; copy it to `.env` and fill it in.
+The bridge reads four values and hardcodes none of them: `MC_PLAYER`, `TIKTOK_USER`,
+`RCON_PASSWORD` and `EULER_API_KEY`. `.env.example` is the full list with a note on
+each one.
 
-`.env` is gitignored. Never commit it, never screenshot it, never leave it on screen.
+### The normal way: create a `.env`
 
-**Option A: let Node read the file** (simplest, Node 20.6 and newer):
+In the repo folder:
 
-```sh
-npx tsx --env-file=.env bridge.ts --keys
+```powershell
+cp .env.example .env
 ```
 
-**Option B: set them in the terminal**, for that terminal only. PowerShell:
+(`copy .env.example .env` in cmd.exe.) Open the copy, fill in the four values, save it.
+
+That is the entire configuration step. The bridge loads that file itself on startup, in
+every mode, so there is no flag to pass and nothing to remember. It also persists: a
+`.env` is still there tomorrow, and in every new terminal window, which is the thing
+shell variables are bad at.
+
+`.env` is gitignored, and it must stay that way. Never commit it, never screenshot it,
+never leave it open on stream. `RCON_PASSWORD` is a real credential for a server on
+your machine, and `EULER_API_KEY` is a real API key.
+
+Fill in what you have. `MC_PLAYER` and `RCON_PASSWORD` are the two that matter for
+everything except `--keys`; `TIKTOK_USER` only matters when you go live, and
+`EULER_API_KEY` can stay blank.
+
+### The alternative: shell variables
+
+Setting the variables directly still works, and it is what you want for a quick
+override. PowerShell, for the current window only:
 
 ```powershell
 $env:MC_PLAYER = "YourExactName"
 $env:TIKTOK_USER = "yourhandle"
 $env:RCON_PASSWORD = "the-password-from-server-properties"
-$env:EULER_API_KEY = "optional"
 ```
 
-These vanish when you close the window. That is often what you want.
+These vanish when you close the window. `setx MC_PLAYER "YourExactName"` persists them,
+but only for terminals you open *afterwards*, never the one you typed it in, which is a
+reliable way to confuse yourself. The `.env` file avoids all of that.
 
-**Option C: persist them for future terminals.** PowerShell or Command Prompt:
+### Which one wins
+
+A variable set in your shell beats the same variable in `.env`. Nothing loaded from a
+file can overwrite something you set deliberately, so:
 
 ```powershell
-setx MC_PLAYER "YourExactName"
+$env:MC_PLAYER = "SomeoneElse"
+npx tsx bridge.ts --test
 ```
 
-`setx` does not affect the terminal you type it in. Open a new one. Check with:
+runs as a different player for that one session without touching the file. Unset it, or
+close the window, and `.env` is back in charge.
 
-```powershell
-echo $env:MC_PLAYER
+### When something is missing
+
+The bridge will not start a mode that needs a value it does not have. It names the
+variable, and it tells you whether it found a `.env` at all:
+
+```
+fatal: MC_PLAYER is not set. It is your exact in-game name, case sensitive, and every command targets it.
+No .env file was found. Copy .env.example to .env in the repo root and fill it in, or set the variable in your shell.
+.env.example lists every variable this bridge reads; docs/SETUP.md walks through setting them.
 ```
 
-The bridge will not start a mode that needs a variable it does not have: it prints the
-name of the missing variable and exits.
+If it says it read a `.env` and the variable is still missing, the line is blank or
+misspelled in the file rather than absent from your terminal.
 
 ## 9. First run
 
-Server up, client joined, variables set, in the repo folder:
+Server up, client joined, `.env` filled in, in the repo folder:
 
 ```sh
 npm ci
@@ -293,8 +325,10 @@ says so and retries every 30 seconds, which is harmless.
 **`Connection refused` on 127.0.0.1:25575** - the server is not running, or `enable-rcon`
 is still `false`, or you edited `server.properties` without restarting the server.
 
-**`RCON_PASSWORD env var is not set`** - the variable is missing in the terminal you are
-actually using. `setx` does not affect the current window.
+**`fatal: RCON_PASSWORD is not set`** - the line is missing or blank in `.env`, or you
+have no `.env` and are relying on shell variables in a different terminal from the one
+you are running in. The second line of the error says which of those it is: it names the
+`.env` files the bridge actually read, or says it found none.
 
 **`Authentication failed`** - `RCON_PASSWORD` does not match `rcon.password` in
 `server.properties`. Watch for a trailing space or smart quotes.
