@@ -1,0 +1,37 @@
+# dependencies
+node_modules/
+
+# secrets and local config. .env.example is the template and IS committed.
+.env
+.env.*
+!.env.example
+
+# --spy recordings. These contain real viewers' display names and ids: keep them local.
+*.jsonl
+
+# a Minecraft server, if you unpack one inside this folder
+*.jar
+eula.txt
+server.properties
+banned-*.json
+ops.json
+whitelist.json
+usercache.json
+logs/
+world/
+world_nether/
+world_the_end/
+cache/
+plugins/
+versions/
+libraries/
+start.bat
+start.sh
+
+# editors and OS junk
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.bak
+npm-debug.log*

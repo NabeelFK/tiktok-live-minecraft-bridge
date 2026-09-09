@@ -1,0 +1,21 @@
+{
+  // Type checking only: `npm run typecheck`. Nothing is emitted and nothing is built,
+  // because tsx runs the TypeScript directly.
+  //
+  // moduleResolution "bundler" matches how tsx (esbuild) actually resolves imports.
+  // Node16 resolution reports phantom errors on tiktok-live-connector's event emitter
+  // that do not exist at runtime.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["*.ts"]
+}

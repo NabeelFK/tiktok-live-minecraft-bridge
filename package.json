@@ -1,0 +1,29 @@
+{
+  "name": "tiktok-live-minecraft-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Turns TikTok LIVE gifts into Minecraft commands over RCON.",
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "keys": "tsx bridge.ts --keys",
+    "verify": "tsx bridge.ts --verify",
+    "test": "tsx bridge.ts --test",
+    "spy": "tsx bridge.ts --spy",
+    "replay": "tsx bridge.ts --replay",
+    "live": "tsx bridge.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "rcon-client": "4.2.5",
+    "tiktok-live-connector": "2.4.4"
+  },
+  "devDependencies": {
+    "@types/node": "26.5.0",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2"
+  }
+}

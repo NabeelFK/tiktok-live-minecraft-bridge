@@ -1,0 +1,2226 @@
+{
+ "_readme": "A dated SNAPSHOT of one region's TikTok gift catalog, not a live source of truth. It is the input to `npx tsx bridge.ts --keys`, which checks that every key in gift-map.ts is a gift that actually exists at the price the map assumes.",
+ "region": "CA",
+ "regionName": "Canada",
+ "source": "https://streamtoearn.io/gifts?region=CA",
+ "catalogUpdated": "June 23, 2026",
+ "capturedAt": "2026-09-08",
+ "capturedBy": "catalog-scrape.js, pasted into the browser console on the page above",
+ "drifts": "Gift names and prices are region-specific and TikTok changes them. Every value here is dated June 23 2026 and will drift. If you are not in Canada this file is the WRONG catalog for you: regenerate your own with catalog-scrape.js and run --keys against it. Do that again before any stream where balance matters.",
+ "doNotFetch": "Do not regenerate this file with an HTTP fetch or a page-summarising tool. They truncate the page around 499 coins and then report every gift above that as absent, which reads exactly like a real absence. A rendered browser is the only route that works; see the header of catalog-scrape.js.",
+ "giftCount": 553,
+ "gifts": [
+  {
+   "name": "Rose",
+   "coins": 1
+  },
+  {
+   "name": "You're awesome",
+   "coins": 1
+  },
+  {
+   "name": "GG",
+   "coins": 1
+  },
+  {
+   "name": "Community Heart",
+   "coins": 1
+  },
+  {
+   "name": "Love you so much",
+   "coins": 1
+  },
+  {
+   "name": "Wink wink",
+   "coins": 1
+  },
+  {
+   "name": "Pop",
+   "coins": 1
+  },
+  {
+   "name": "Ice Cream Cone",
+   "coins": 1
+  },
+  {
+   "name": "A Shard of Hope",
+   "coins": 1
+  },
+  {
+   "name": "TikTok",
+   "coins": 1
+  },
+  {
+   "name": "Glow Stick",
+   "coins": 1
+  },
+  {
+   "name": "Freestyle",
+   "coins": 1
+  },
+  {
+   "name": "Oldies",
+   "coins": 1
+  },
+  {
+   "name": "Cake Slice",
+   "coins": 1
+  },
+  {
+   "name": "Heart Me",
+   "coins": 1
+  },
+  {
+   "name": "It's Match Time",
+   "coins": 1
+  },
+  {
+   "name": "So Cute",
+   "coins": 1
+  },
+  {
+   "name": "Creeper",
+   "coins": 1
+  },
+  {
+   "name": "Football",
+   "coins": 1
+  },
+  {
+   "name": "Congratulations",
+   "coins": 1
+  },
+  {
+   "name": "umbrella",
+   "coins": 1
+  },
+  {
+   "name": "Thumbs Up",
+   "coins": 1
+  },
+  {
+   "name": "Heart",
+   "coins": 1
+  },
+  {
+   "name": "Love you",
+   "coins": 1
+  },
+  {
+   "name": "LIVE",
+   "coins": 1
+  },
+  {
+   "name": "Music Album",
+   "coins": 1
+  },
+  {
+   "name": "My First Rose",
+   "coins": 1
+  },
+  {
+   "name": "coldy",
+   "coins": 1
+  },
+  {
+   "name": "Red Lightning",
+   "coins": 1
+  },
+  {
+   "name": "Blue Lightning",
+   "coins": 1
+  },
+  {
+   "name": "Yellow Lightning",
+   "coins": 1
+  },
+  {
+   "name": "Oranges",
+   "coins": 1
+  },
+  {
+   "name": "Thumbs Up",
+   "coins": 1
+  },
+  {
+   "name": "Go Popular",
+   "coins": 1
+  },
+  {
+   "name": "Club Cheers",
+   "coins": 1
+  },
+  {
+   "name": "Club Cheers",
+   "coins": 1
+  },
+  {
+   "name": "Wink Charm",
+   "coins": 1
+  },
+  {
+   "name": "Team Bracelet",
+   "coins": 2
+  },
+  {
+   "name": "Overreact",
+   "coins": 5
+  },
+  {
+   "name": "Finger Heart",
+   "coins": 5
+  },
+  {
+   "name": "Spinning Soccer",
+   "coins": 5
+  },
+  {
+   "name": "Name shoutout",
+   "coins": 5
+  },
+  {
+   "name": "Duit Raya",
+   "coins": 5
+  },
+  {
+   "name": "Cherry",
+   "coins": 5
+  },
+  {
+   "name": "Love Guard",
+   "coins": 5
+  },
+  {
+   "name": "Divine Fingers",
+   "coins": 6
+  },
+  {
+   "name": "Super Popular",
+   "coins": 9
+  },
+  {
+   "name": "Cheer You Up",
+   "coins": 9
+  },
+  {
+   "name": "Club Power",
+   "coins": 9
+  },
+  {
+   "name": "Club Power",
+   "coins": 9
+  },
+  {
+   "name": "Friendship Necklace",
+   "coins": 10
+  },
+  {
+   "name": "Rosa",
+   "coins": 10
+  },
+  {
+   "name": "Slow motion",
+   "coins": 10
+  },
+  {
+   "name": "Journey Pass",
+   "coins": 10
+  },
+  {
+   "name": "League Ball",
+   "coins": 10
+  },
+  {
+   "name": "Lucky Pony",
+   "coins": 10
+  },
+  {
+   "name": "LIVE Ranking Ticket",
+   "coins": 10
+  },
+  {
+   "name": "Chocolate",
+   "coins": 10
+  },
+  {
+   "name": "FANDOM Fan",
+   "coins": 10
+  },
+  {
+   "name": "Sing Together",
+   "coins": 10
+  },
+  {
+   "name": "Gold Boxing Gloves",
+   "coins": 10
+  },
+  {
+   "name": "Style Me Up",
+   "coins": 10
+  },
+  {
+   "name": "New York Cab",
+   "coins": 10
+  },
+  {
+   "name": "Banana Peel",
+   "coins": 10
+  },
+  {
+   "name": "Beach Radio",
+   "coins": 10
+  },
+  {
+   "name": "Heart Gaze",
+   "coins": 10
+  },
+  {
+   "name": "Bravo!",
+   "coins": 15
+  },
+  {
+   "name": "Perfume",
+   "coins": 20
+  },
+  {
+   "name": "Summer Sun",
+   "coins": 20
+  },
+  {
+   "name": "Chicago Pizza",
+   "coins": 20
+  },
+  {
+   "name": "Traffic Cone",
+   "coins": 20
+  },
+  {
+   "name": "Summer Star",
+   "coins": 25
+  },
+  {
+   "name": "Doughnut",
+   "coins": 30
+  },
+  {
+   "name": "Energy Capsule",
+   "coins": 30
+  },
+  {
+   "name": "Bouncing Ball",
+   "coins": 45
+  },
+  {
+   "name": "October",
+   "coins": 88
+  },
+  {
+   "name": "Paper Crane",
+   "coins": 99
+  },
+  {
+   "name": "Cupid’s Bow",
+   "coins": 99
+  },
+  {
+   "name": "Little Crown",
+   "coins": 99
+  },
+  {
+   "name": "Cap",
+   "coins": 99
+  },
+  {
+   "name": "Hat and Mustache",
+   "coins": 99
+  },
+  {
+   "name": "Like-Pop",
+   "coins": 99
+  },
+  {
+   "name": "Love Painting",
+   "coins": 99
+  },
+  {
+   "name": "Bubble Gum",
+   "coins": 99
+  },
+  {
+   "name": "Mark of Love",
+   "coins": 99
+  },
+  {
+   "name": "Sundae Bowl",
+   "coins": 99
+  },
+  {
+   "name": "Charmer Bow",
+   "coins": 99
+  },
+  {
+   "name": "Bloom Melody",
+   "coins": 99
+  },
+  {
+   "name": "Community Style",
+   "coins": 99
+  },
+  {
+   "name": "Club Victory",
+   "coins": 99
+  },
+  {
+   "name": "Level-up Sparks",
+   "coins": 99
+  },
+  {
+   "name": "Greeting Heart",
+   "coins": 99
+  },
+  {
+   "name": "Club Victory",
+   "coins": 99
+  },
+  {
+   "name": "Game Controller",
+   "coins": 100
+  },
+  {
+   "name": "Super GG",
+   "coins": 100
+  },
+  {
+   "name": "FANDOM Stamp",
+   "coins": 100
+  },
+  {
+   "name": "Confetti",
+   "coins": 100
+  },
+  {
+   "name": "Hand Heart",
+   "coins": 100
+  },
+  {
+   "name": "Flowers",
+   "coins": 100
+  },
+  {
+   "name": "Hand Heart",
+   "coins": 100
+  },
+  {
+   "name": "Power Chip",
+   "coins": 100
+  },
+  {
+   "name": "Marvelous Confetti",
+   "coins": 100
+  },
+  {
+   "name": "Singing Magic",
+   "coins": 100
+  },
+  {
+   "name": "Bowknot",
+   "coins": 149
+  },
+  {
+   "name": "Big Shout Out",
+   "coins": 149
+  },
+  {
+   "name": "Chatting Popcorn",
+   "coins": 149
+  },
+  {
+   "name": "Masquerade",
+   "coins": 149
+  },
+  {
+   "name": "Balloon Crown",
+   "coins": 149
+  },
+  {
+   "name": "Feather Tiara",
+   "coins": 149
+  },
+  {
+   "name": "Caterpillar Chaos",
+   "coins": 149
+  },
+  {
+   "name": "Catrina",
+   "coins": 149
+  },
+  {
+   "name": "Raving Snail",
+   "coins": 149
+  },
+  {
+   "name": "Love Glasses",
+   "coins": 149
+  },
+  {
+   "name": "Fairy Hide",
+   "coins": 149
+  },
+  {
+   "name": "Frog Conductor",
+   "coins": 149
+  },
+  {
+   "name": "Louis the Cardinal",
+   "coins": 150
+  },
+  {
+   "name": "Star Guard",
+   "coins": 150
+  },
+  {
+   "name": "League Countdown",
+   "coins": 199
+  },
+  {
+   "name": "Suitcase",
+   "coins": 199
+  },
+  {
+   "name": "Sunglasses",
+   "coins": 199
+  },
+  {
+   "name": "Hearts",
+   "coins": 199
+  },
+  {
+   "name": "Hanging Lights",
+   "coins": 199
+  },
+  {
+   "name": "Garland Headpiece",
+   "coins": 199
+  },
+  {
+   "name": "Love You",
+   "coins": 199
+  },
+  {
+   "name": "Cheer For You",
+   "coins": 199
+  },
+  {
+   "name": "Panther Paws",
+   "coins": 199
+  },
+  {
+   "name": "Coffee Magic",
+   "coins": 199
+  },
+  {
+   "name": "Potato in Paris",
+   "coins": 199
+  },
+  {
+   "name": "Cheering Crab",
+   "coins": 199
+  },
+  {
+   "name": "Wooly Hat",
+   "coins": 199
+  },
+  {
+   "name": "Floating Octopus",
+   "coins": 199
+  },
+  {
+   "name": "Flower Headband",
+   "coins": 199
+  },
+  {
+   "name": "Rose Hand",
+   "coins": 199
+  },
+  {
+   "name": "Rose Hand",
+   "coins": 199
+  },
+  {
+   "name": "Coconut Juice",
+   "coins": 199
+  },
+  {
+   "name": "Chirpy Kisses",
+   "coins": 199
+  },
+  {
+   "name": "Joker Ball",
+   "coins": 199
+  },
+  {
+   "name": "Heart Hood",
+   "coins": 199
+  },
+  {
+   "name": "Smile Latte",
+   "coins": 199
+  },
+  {
+   "name": "Party Pony",
+   "coins": 199
+  },
+  {
+   "name": "Fan Cat",
+   "coins": 199
+  },
+  {
+   "name": "Bloom Brass",
+   "coins": 199
+  },
+  {
+   "name": "Rhythm Bot",
+   "coins": 199
+  },
+  {
+   "name": "Heart",
+   "coins": 200
+  },
+  {
+   "name": "Gold Medal",
+   "coins": 200
+  },
+  {
+   "name": "Balloons",
+   "coins": 200
+  },
+  {
+   "name": "Magic Genie",
+   "coins": 200
+  },
+  {
+   "name": "Magic Genie",
+   "coins": 200
+  },
+  {
+   "name": "Semsemia",
+   "coins": 200
+  },
+  {
+   "name": "Baglama",
+   "coins": 200
+  },
+  {
+   "name": "Rose Bear",
+   "coins": 214
+  },
+  {
+   "name": "Pinch Face",
+   "coins": 249
+  },
+  {
+   "name": "Candy Bouquet",
+   "coins": 249
+  },
+  {
+   "name": "Ice Cream Mic",
+   "coins": 249
+  },
+  {
+   "name": "Star Goggles",
+   "coins": 249
+  },
+  {
+   "name": "Cheer Mic",
+   "coins": 249
+  },
+  {
+   "name": "Music Bubbles",
+   "coins": 249
+  },
+  {
+   "name": "Palm Breeze",
+   "coins": 249
+  },
+  {
+   "name": "Forest Elf",
+   "coins": 249
+  },
+  {
+   "name": "Face-pulling",
+   "coins": 249
+  },
+  {
+   "name": "Treasured Voice",
+   "coins": 249
+  },
+  {
+   "name": "Melodic birds",
+   "coins": 249
+  },
+  {
+   "name": "Surfing Penguin",
+   "coins": 249
+  },
+  {
+   "name": "Party Blossom",
+   "coins": 249
+  },
+  {
+   "name": "Dreamy Strings",
+   "coins": 249
+  },
+  {
+   "name": "Sweet Flutter",
+   "coins": 249
+  },
+  {
+   "name": "Snow Bloom",
+   "coins": 249
+  },
+  {
+   "name": "Amped Up",
+   "coins": 249
+  },
+  {
+   "name": "Poetry Score",
+   "coins": 249
+  },
+  {
+   "name": "Singing Frog",
+   "coins": 249
+  },
+  {
+   "name": "LIVE Ranking Headband",
+   "coins": 299
+  },
+  {
+   "name": "EID Gift Box",
+   "coins": 299
+  },
+  {
+   "name": "Rain Doll",
+   "coins": 299
+  },
+  {
+   "name": "LIVE Ranking Crown",
+   "coins": 299
+  },
+  {
+   "name": "Boxing Gloves",
+   "coins": 299
+  },
+  {
+   "name": "Corgi",
+   "coins": 299
+  },
+  {
+   "name": "Trick or Treat",
+   "coins": 299
+  },
+  {
+   "name": "Fruit Friends",
+   "coins": 299
+  },
+  {
+   "name": "Naughty Chicken",
+   "coins": 299
+  },
+  {
+   "name": "Play for You",
+   "coins": 299
+  },
+  {
+   "name": "Rock Star",
+   "coins": 299
+  },
+  {
+   "name": "Butterfly for You",
+   "coins": 299
+  },
+  {
+   "name": "Puppy Kisses",
+   "coins": 299
+  },
+  {
+   "name": "United Heart",
+   "coins": 299
+  },
+  {
+   "name": "Kicker Challenge",
+   "coins": 299
+  },
+  {
+   "name": "Hi! Rosie!",
+   "coins": 299
+  },
+  {
+   "name": "Go Hamster",
+   "coins": 299
+  },
+  {
+   "name": "Bat Headwear",
+   "coins": 299
+  },
+  {
+   "name": "Melody Glasses",
+   "coins": 299
+  },
+  {
+   "name": "Penguin Snowpal",
+   "coins": 299
+  },
+  {
+   "name": "Music Mate",
+   "coins": 299
+  },
+  {
+   "name": "Love Call",
+   "coins": 299
+  },
+  {
+   "name": "Pony Lantern",
+   "coins": 299
+  },
+  {
+   "name": "Spring Sprout",
+   "coins": 299
+  },
+  {
+   "name": "Wakey Mallow",
+   "coins": 299
+  },
+  {
+   "name": "Sax Groove",
+   "coins": 299
+  },
+  {
+   "name": "Scroll",
+   "coins": 299
+  },
+  {
+   "name": "Labor Power",
+   "coins": 299
+  },
+  {
+   "name": "Cello Romance",
+   "coins": 299
+  },
+  {
+   "name": "Come On!",
+   "coins": 299
+  },
+  {
+   "name": "Cheering Towel",
+   "coins": 299
+  },
+  {
+   "name": "Budding Heart",
+   "coins": 299
+  },
+  {
+   "name": "Feather Mask",
+   "coins": 300
+  },
+  {
+   "name": "Surf Star",
+   "coins": 300
+  },
+  {
+   "name": "Festival Bracelet",
+   "coins": 349
+  },
+  {
+   "name": "Backing Monkey",
+   "coins": 349
+  },
+  {
+   "name": "Become Kitten",
+   "coins": 349
+  },
+  {
+   "name": "Marked with Love",
+   "coins": 349
+  },
+  {
+   "name": "Vinyl Flip",
+   "coins": 349
+  },
+  {
+   "name": "Juicy Cap",
+   "coins": 349
+  },
+  {
+   "name": "Batwing Hat",
+   "coins": 349
+  },
+  {
+   "name": "Beach Maracas",
+   "coins": 349
+  },
+  {
+   "name": "Vintage flight",
+   "coins": 349
+  },
+  {
+   "name": "Gingerbread Man",
+   "coins": 349
+  },
+  {
+   "name": "Candy Bouquet",
+   "coins": 349
+  },
+  {
+   "name": "Rocking Shroom",
+   "coins": 349
+  },
+  {
+   "name": "Sparkle Pony",
+   "coins": 349
+  },
+  {
+   "name": "Spring Bouquet",
+   "coins": 349
+  },
+  {
+   "name": "Canyon Bighorn",
+   "coins": 349
+  },
+  {
+   "name": "Craft Dreamer",
+   "coins": 349
+  },
+  {
+   "name": "Mom's Bonnet",
+   "coins": 349
+  },
+  {
+   "name": "Retro Melody",
+   "coins": 349
+  },
+  {
+   "name": "Ukulele Player",
+   "coins": 349
+  },
+  {
+   "name": "Chopin in the Rain",
+   "coins": 349
+  },
+  {
+   "name": "Electro Vibes",
+   "coins": 349
+  },
+  {
+   "name": "Retro Headset",
+   "coins": 349
+  },
+  {
+   "name": "Forever Rosa",
+   "coins": 399
+  },
+  {
+   "name": "Magic Rhythm",
+   "coins": 399
+  },
+  {
+   "name": "Relaxed Goose",
+   "coins": 399
+  },
+  {
+   "name": "Tom's Hug",
+   "coins": 399
+  },
+  {
+   "name": "Rosie the Rose Bean",
+   "coins": 399
+  },
+  {
+   "name": "Jollie the Joy Bean",
+   "coins": 399
+  },
+  {
+   "name": "Rocky the Rock Bean",
+   "coins": 399
+  },
+  {
+   "name": "Sage the Smart Bean",
+   "coins": 399
+  },
+  {
+   "name": "Sage's Slash",
+   "coins": 399
+  },
+  {
+   "name": "Let butterfly dances",
+   "coins": 399
+  },
+  {
+   "name": "Kitten Kneading",
+   "coins": 399
+  },
+  {
+   "name": "Shoot the Apple",
+   "coins": 399
+  },
+  {
+   "name": "Alien Buddy",
+   "coins": 399
+  },
+  {
+   "name": "Rosie's Concert",
+   "coins": 399
+  },
+  {
+   "name": "Tiger Lift",
+   "coins": 399
+  },
+  {
+   "name": "Santa Owl Surprise",
+   "coins": 399
+  },
+  {
+   "name": "Confetti Bear",
+   "coins": 399
+  },
+  {
+   "name": "Singing Sax",
+   "coins": 399
+  },
+  {
+   "name": "Fairy Locket",
+   "coins": 399
+  },
+  {
+   "name": "Panda Snap",
+   "coins": 399
+  },
+  {
+   "name": "Blossom Fairy",
+   "coins": 399
+  },
+  {
+   "name": "Dreamy Hat",
+   "coins": 399
+  },
+  {
+   "name": "Vocal Bear",
+   "coins": 399
+  },
+  {
+   "name": "Cactus Shuffle",
+   "coins": 399
+  },
+  {
+   "name": "Health Potion",
+   "coins": 399
+  },
+  {
+   "name": "Echo Mom",
+   "coins": 399
+  },
+  {
+   "name": "DJ Set",
+   "coins": 399
+  },
+  {
+   "name": "Melody Headset",
+   "coins": 399
+  },
+  {
+   "name": "Papa Capybara",
+   "coins": 399
+  },
+  {
+   "name": "Beat Wings",
+   "coins": 399
+  },
+  {
+   "name": "Jollie's Community",
+   "coins": 399
+  },
+  {
+   "name": "FANDOM Fever",
+   "coins": 400
+  },
+  {
+   "name": "Crystal Dreams",
+   "coins": 400
+  },
+  {
+   "name": "Wishing Cake",
+   "coins": 400
+  },
+  {
+   "name": "Mic Champ",
+   "coins": 400
+  },
+  {
+   "name": "Bounce Speakers",
+   "coins": 400
+  },
+  {
+   "name": "Sweet Scoop",
+   "coins": 400
+  },
+  {
+   "name": "Reindeer Milk",
+   "coins": 400
+  },
+  {
+   "name": "Cheeky Pup",
+   "coins": 400
+  },
+  {
+   "name": "DJ Wave",
+   "coins": 400
+  },
+  {
+   "name": "Punch Cuddle",
+   "coins": 400
+  },
+  {
+   "name": "Glorious Chef",
+   "coins": 400
+  },
+  {
+   "name": "Rock Cats",
+   "coins": 400
+  },
+  {
+   "name": "Magic Accordion",
+   "coins": 400
+  },
+  {
+   "name": "Super Dad",
+   "coins": 400
+  },
+  {
+   "name": "Beating Heart",
+   "coins": 449
+  },
+  {
+   "name": "Encore Clap",
+   "coins": 449
+  },
+  {
+   "name": "Pirate's Treasure",
+   "coins": 449
+  },
+  {
+   "name": "Candy Loot",
+   "coins": 449
+  },
+  {
+   "name": "Captured Vocals",
+   "coins": 449
+  },
+  {
+   "name": "Batting Cutie",
+   "coins": 449
+  },
+  {
+   "name": "Space Love",
+   "coins": 449
+  },
+  {
+   "name": "Xmas Tree Hat",
+   "coins": 449
+  },
+  {
+   "name": "Clown Boogie",
+   "coins": 449
+  },
+  {
+   "name": "Electronic Love Song",
+   "coins": 449
+  },
+  {
+   "name": "Rock and Roll",
+   "coins": 449
+  },
+  {
+   "name": "Powerful Mind",
+   "coins": 450
+  },
+  {
+   "name": "Hat of Joy",
+   "coins": 450
+  },
+  {
+   "name": "Halloween Fun Hat",
+   "coins": 450
+  },
+  {
+   "name": "Music Conductor",
+   "coins": 450
+  },
+  {
+   "name": "Celebration Hat",
+   "coins": 450
+  },
+  {
+   "name": "City Pop",
+   "coins": 450
+  },
+  {
+   "name": "Cupid Koala",
+   "coins": 450
+  },
+  {
+   "name": "Paw Call",
+   "coins": 450
+  },
+  {
+   "name": "Superwoman",
+   "coins": 450
+  },
+  {
+   "name": "Clover Hat",
+   "coins": 450
+  },
+  {
+   "name": "Sloth Peek",
+   "coins": 450
+  },
+  {
+   "name": "Office Penguin",
+   "coins": 450
+  },
+  {
+   "name": "Pink Cowboy",
+   "coins": 450
+  },
+  {
+   "name": "Coral",
+   "coins": 499
+  },
+  {
+   "name": "Im Just a Hamster",
+   "coins": 499
+  },
+  {
+   "name": "Rose Soundwave",
+   "coins": 499
+  },
+  {
+   "name": "Hands Up",
+   "coins": 499
+  },
+  {
+   "name": "Baby Chicks",
+   "coins": 500
+  },
+  {
+   "name": "Match Master",
+   "coins": 500
+  },
+  {
+   "name": "Manifesting",
+   "coins": 500
+  },
+  {
+   "name": "Money Gun",
+   "coins": 500
+  },
+  {
+   "name": "You’re Amazing",
+   "coins": 500
+  },
+  {
+   "name": "VR Goggles",
+   "coins": 500
+  },
+  {
+   "name": "Manifesting",
+   "coins": 500
+  },
+  {
+   "name": "DJ Glasses",
+   "coins": 500
+  },
+  {
+   "name": "Dragon Crown",
+   "coins": 500
+  },
+  {
+   "name": "Star Map Polaris",
+   "coins": 500
+  },
+  {
+   "name": "Racing Helmet",
+   "coins": 500
+  },
+  {
+   "name": "Summer of LIVE",
+   "coins": 500
+  },
+  {
+   "name": "Bunny Crown",
+   "coins": 500
+  },
+  {
+   "name": "Magic Prop",
+   "coins": 500
+  },
+  {
+   "name": "Cozy Xmas Set",
+   "coins": 500
+  },
+  {
+   "name": "Mystery Box",
+   "coins": 500
+  },
+  {
+   "name": "Heart Guitar",
+   "coins": 500
+  },
+  {
+   "name": "Prairie Diny",
+   "coins": 500
+  },
+  {
+   "name": "Prairie Tom",
+   "coins": 500
+  },
+  {
+   "name": "Prairie Blitzy",
+   "coins": 500
+  },
+  {
+   "name": "Prairie Cooper",
+   "coins": 500
+  },
+  {
+   "name": "Jungle Diny",
+   "coins": 500
+  },
+  {
+   "name": "Jungle Tom",
+   "coins": 500
+  },
+  {
+   "name": "Jungle Blitzy",
+   "coins": 500
+  },
+  {
+   "name": "Jungle Cooper",
+   "coins": 500
+  },
+  {
+   "name": "Starry Fluff",
+   "coins": 500
+  },
+  {
+   "name": "Mystery Box",
+   "coins": 500
+  },
+  {
+   "name": "Shell of a Warrior",
+   "coins": 500
+  },
+  {
+   "name": "Roo Mother",
+   "coins": 500
+  },
+  {
+   "name": "Lost in Your Music",
+   "coins": 500
+  },
+  {
+   "name": "Drum Pop",
+   "coins": 500
+  },
+  {
+   "name": "Gem Gun",
+   "coins": 500
+  },
+  {
+   "name": "Bubbly Kiss",
+   "coins": 530
+  },
+  {
+   "name": "Hive Escape",
+   "coins": 549
+  },
+  {
+   "name": "Drum Hamster",
+   "coins": 549
+  },
+  {
+   "name": "Fully Bloomed Sakura",
+   "coins": 599
+  },
+  {
+   "name": "League Trophy",
+   "coins": 599
+  },
+  {
+   "name": "Soccer Holo",
+   "coins": 599
+  },
+  {
+   "name": "Join Butterflies",
+   "coins": 600
+  },
+  {
+   "name": "Sakura-style DJ",
+   "coins": 600
+  },
+  {
+   "name": "Seahorse Pop",
+   "coins": 649
+  },
+  {
+   "name": "Swan",
+   "coins": 699
+  },
+  {
+   "name": "Colorful Wings",
+   "coins": 700
+  },
+  {
+   "name": "Love Flight",
+   "coins": 800
+  },
+  {
+   "name": "Epic Pianist",
+   "coins": 800
+  },
+  {
+   "name": "Penguin",
+   "coins": 800
+  },
+  {
+   "name": "Train",
+   "coins": 899
+  },
+  {
+   "name": "Bearlicious Sundae",
+   "coins": 900
+  },
+  {
+   "name": "Flamingo Floaty",
+   "coins": 999
+  },
+  {
+   "name": "Music Burst",
+   "coins": 999
+  },
+  {
+   "name": "Travel with You",
+   "coins": 999
+  },
+  {
+   "name": "Lucky Airdrop Box",
+   "coins": 999
+  },
+  {
+   "name": "Grand show",
+   "coins": 999
+  },
+  {
+   "name": "Superstriker Sage",
+   "coins": 999
+  },
+  {
+   "name": "Trending Figure",
+   "coins": 999
+  },
+  {
+   "name": "Matchtacular!",
+   "coins": 1000
+  },
+  {
+   "name": "Watermelon Love",
+   "coins": 1000
+  },
+  {
+   "name": "Blooming Ribbons",
+   "coins": 1000
+  },
+  {
+   "name": "Galaxy",
+   "coins": 1000
+  },
+  {
+   "name": "Dinosaur",
+   "coins": 1000
+  },
+  {
+   "name": "Fairy Wings",
+   "coins": 1000
+  },
+  {
+   "name": "Flamingo Groove",
+   "coins": 1000
+  },
+  {
+   "name": "Summer Glass",
+   "coins": 1000
+  },
+  {
+   "name": "Firepit Diny",
+   "coins": 1000
+  },
+  {
+   "name": "Firepit Tom",
+   "coins": 1000
+  },
+  {
+   "name": "Firepit Blitzy",
+   "coins": 1000
+  },
+  {
+   "name": "Firepit Cooper",
+   "coins": 1000
+  },
+  {
+   "name": "Desert Diny",
+   "coins": 1000
+  },
+  {
+   "name": "Desert Tom",
+   "coins": 1000
+  },
+  {
+   "name": "Desert Blitzy",
+   "coins": 1000
+  },
+  {
+   "name": "Desert Cooper",
+   "coins": 1000
+  },
+  {
+   "name": "Tundra Diny",
+   "coins": 1000
+  },
+  {
+   "name": "Tundra Tom",
+   "coins": 1000
+  },
+  {
+   "name": "Tundra Blitzy",
+   "coins": 1000
+  },
+  {
+   "name": "Tundra Cooper",
+   "coins": 1000
+  },
+  {
+   "name": "Magic Potion",
+   "coins": 1000
+  },
+  {
+   "name": "LA Route 66",
+   "coins": 1000
+  },
+  {
+   "name": "Shiny Air Balloon",
+   "coins": 1000
+  },
+  {
+   "name": "Sparkle Dance",
+   "coins": 1000
+  },
+  {
+   "name": "Joy Floats",
+   "coins": 1030
+  },
+  {
+   "name": "Candy Puffs",
+   "coins": 1030
+  },
+  {
+   "name": "Pumpkin Carriage",
+   "coins": 1031
+  },
+  {
+   "name": "Fireworks",
+   "coins": 1088
+  },
+  {
+   "name": "Magic Role",
+   "coins": 1088
+  },
+  {
+   "name": "Umbrella of Love",
+   "coins": 1200
+  },
+  {
+   "name": "Hydrangea Sea",
+   "coins": 1299
+  },
+  {
+   "name": "Party Laser",
+   "coins": 1300
+  },
+  {
+   "name": "Vibrant Stage",
+   "coins": 1400
+  },
+  {
+   "name": "Level Ship",
+   "coins": 1500
+  },
+  {
+   "name": "Raya Gift Card",
+   "coins": 1500
+  },
+  {
+   "name": "Viking Hammer",
+   "coins": 1500
+  },
+  {
+   "name": "Chasing the Dream",
+   "coins": 1500
+  },
+  {
+   "name": "Lover’s Lock",
+   "coins": 1500
+  },
+  {
+   "name": "Greeting Card",
+   "coins": 1500
+  },
+  {
+   "name": "Future Encounter",
+   "coins": 1500
+  },
+  {
+   "name": "Under Control",
+   "coins": 1500
+  },
+  {
+   "name": "Space Cat",
+   "coins": 1500
+  },
+  {
+   "name": "Racing Debut",
+   "coins": 1500
+  },
+  {
+   "name": "You're So Fly",
+   "coins": 1500
+  },
+  {
+   "name": "Astrobear",
+   "coins": 1500
+  },
+  {
+   "name": "Wild Mic",
+   "coins": 1500
+  },
+  {
+   "name": "Ignition Check",
+   "coins": 1500
+  },
+  {
+   "name": "Blooming Heart",
+   "coins": 1599
+  },
+  {
+   "name": "Here We Go",
+   "coins": 1799
+  },
+  {
+   "name": "Love Drop",
+   "coins": 1800
+  },
+  {
+   "name": "Fox Legend",
+   "coins": 1800
+  },
+  {
+   "name": "Freestyle",
+   "coins": 1800
+  },
+  {
+   "name": "Doll New Year Greeting",
+   "coins": 1999
+  },
+  {
+   "name": "Star of Red Carpet",
+   "coins": 1999
+  },
+  {
+   "name": "Cooper Flies Home",
+   "coins": 1999
+  },
+  {
+   "name": "Mystery Firework",
+   "coins": 1999
+  },
+  {
+   "name": "Club Music",
+   "coins": 2000
+  },
+  {
+   "name": "Crystal Crown",
+   "coins": 2000
+  },
+  {
+   "name": "Sky Drift",
+   "coins": 2000
+  },
+  {
+   "name": "Whale Diving",
+   "coins": 2150
+  },
+  {
+   "name": "Blow Rosie Kisses",
+   "coins": 2199
+  },
+  {
+   "name": "Jollie's Heartland",
+   "coins": 2199
+  },
+  {
+   "name": "Rocky's Punch",
+   "coins": 2199
+  },
+  {
+   "name": "Sage's Coinbot",
+   "coins": 2199
+  },
+  {
+   "name": "Wave Lights",
+   "coins": 2200
+  },
+  {
+   "name": "By the Glaziers",
+   "coins": 2380
+  },
+  {
+   "name": "Tom Thunderfoot",
+   "coins": 2499
+  },
+  {
+   "name": "FANDOM Cheer",
+   "coins": 2500
+  },
+  {
+   "name": "Animal Band",
+   "coins": 2500
+  },
+  {
+   "name": "Space Dog",
+   "coins": 2500
+  },
+  {
+   "name": "Celebration Tape",
+   "coins": 2800
+  },
+  {
+   "name": "Samfaring Tom",
+   "coins": 2850
+  },
+  {
+   "name": "Pink Dream",
+   "coins": 2988
+  },
+  {
+   "name": "Motorcycle",
+   "coins": 2988
+  },
+  {
+   "name": "Ice Cream",
+   "coins": 2988
+  },
+  {
+   "name": "Music Live",
+   "coins": 2988
+  },
+  {
+   "name": "Match Maniac",
+   "coins": 2999
+  },
+  {
+   "name": "Surprise Baby Mob",
+   "coins": 2999
+  },
+  {
+   "name": "Surprise Baby Mob",
+   "coins": 2999
+  },
+  {
+   "name": "Ring Of Honor-Cube",
+   "coins": 2999
+  },
+  {
+   "name": "Rhythmic Bear",
+   "coins": 2999
+  },
+  {
+   "name": "Party Bus",
+   "coins": 2999
+  },
+  {
+   "name": "Community Rally",
+   "coins": 2999
+  },
+  {
+   "name": "Level-up Spotlight",
+   "coins": 2999
+  },
+  {
+   "name": "Meteor Shower",
+   "coins": 3000
+  },
+  {
+   "name": "Summoning Horn",
+   "coins": 3000
+  },
+  {
+   "name": "Sea Diny",
+   "coins": 3088
+  },
+  {
+   "name": "Sea Tom",
+   "coins": 3088
+  },
+  {
+   "name": "Sea Blitzy",
+   "coins": 3088
+  },
+  {
+   "name": "Sea Cooper",
+   "coins": 3088
+  },
+  {
+   "name": "Hip-Hop Hen",
+   "coins": 3200
+  },
+  {
+   "name": "Look Up",
+   "coins": 3350
+  },
+  {
+   "name": "Dream Big",
+   "coins": 3350
+  },
+  {
+   "name": "LIVE Ranking Party",
+   "coins": 3999
+  },
+  {
+   "name": "Go Home",
+   "coins": 3999
+  },
+  {
+   "name": "Summer Time",
+   "coins": 3999
+  },
+  {
+   "name": "Shine Bright",
+   "coins": 4088
+  },
+  {
+   "name": "Magic World",
+   "coins": 4088
+  },
+  {
+   "name": "Your Concert",
+   "coins": 4500
+  },
+  {
+   "name": "Dynamic Music",
+   "coins": 4888
+  },
+  {
+   "name": "Private Jet",
+   "coins": 4888
+  },
+  {
+   "name": "Leon the Kitten",
+   "coins": 4888
+  },
+  {
+   "name": "Fiery Dragon",
+   "coins": 4888
+  },
+  {
+   "name": "Signature Jet",
+   "coins": 4888
+  },
+  {
+   "name": "Sugar Whiskers",
+   "coins": 4918
+  },
+  {
+   "name": "Stage of ring",
+   "coins": 4999
+  },
+  {
+   "name": "Knock Out",
+   "coins": 4999
+  },
+  {
+   "name": "Sage’s Venture",
+   "coins": 4999
+  },
+  {
+   "name": "Guardian's Pledge",
+   "coins": 4999
+  },
+  {
+   "name": "Diamond Gun",
+   "coins": 5000
+  },
+  {
+   "name": "Crowd Cheering",
+   "coins": 5000
+  },
+  {
+   "name": "League Fandom",
+   "coins": 5000
+  },
+  {
+   "name": "Unicorn Fantasy",
+   "coins": 5000
+  },
+  {
+   "name": "Flying Jets",
+   "coins": 5000
+  },
+  {
+   "name": "Diamond Gun",
+   "coins": 5000
+  },
+  {
+   "name": "Gamer's EVE",
+   "coins": 5000
+  },
+  {
+   "name": "Leon's Sigil Cape",
+   "coins": 5000
+  },
+  {
+   "name": "Seaside Romance",
+   "coins": 5000
+  },
+  {
+   "name": "Fluffy Buddies",
+   "coins": 5388
+  },
+  {
+   "name": "Wolf",
+   "coins": 5500
+  },
+  {
+   "name": "Cub on Clouds",
+   "coins": 5888
+  },
+  {
+   "name": "Valiant Odyssey",
+   "coins": 5888
+  },
+  {
+   "name": "Devoted Heart",
+   "coins": 5999
+  },
+  {
+   "name": "Chick Stampede",
+   "coins": 6000
+  },
+  {
+   "name": "Future City",
+   "coins": 6000
+  },
+  {
+   "name": "Sam in New City",
+   "coins": 6000
+  },
+  {
+   "name": "Star Beach",
+   "coins": 6000
+  },
+  {
+   "name": "Work Hard Play Harder",
+   "coins": 6000
+  },
+  {
+   "name": "Strong Finish",
+   "coins": 6000
+  },
+  {
+   "name": "Rust Reforged",
+   "coins": 6000
+  },
+  {
+   "name": "Goal Highlight-CA",
+   "coins": 6000
+  },
+  {
+   "name": "Goal Highlight",
+   "coins": 6000
+  },
+  {
+   "name": "Lili the Leopard",
+   "coins": 6599
+  },
+  {
+   "name": "Celebration Time",
+   "coins": 6999
+  },
+  {
+   "name": "Happy Party",
+   "coins": 6999
+  },
+  {
+   "name": "Sports Car",
+   "coins": 7000
+  },
+  {
+   "name": "Majestic Hearts",
+   "coins": 7238
+  },
+  {
+   "name": "Diamond Shield",
+   "coins": 7999
+  },
+  {
+   "name": "Star Throne",
+   "coins": 7999
+  },
+  {
+   "name": "Star Throne",
+   "coins": 7999
+  },
+  {
+   "name": "Ultimate FANDOM",
+   "coins": 8000
+  },
+  {
+   "name": "Leon and Lili",
+   "coins": 9699
+  },
+  {
+   "name": "Beach House",
+   "coins": 9999
+  },
+  {
+   "name": "Interstellar",
+   "coins": 10000
+  },
+  {
+   "name": "Sunset Speedway",
+   "coins": 10000
+  },
+  {
+   "name": "Red Lightning",
+   "coins": 12000
+  },
+  {
+   "name": "Gimme The Mic",
+   "coins": 12000
+  },
+  {
+   "name": "Level-up Spectacle",
+   "coins": 12999
+  },
+  {
+   "name": "Tidecaller Trident",
+   "coins": 14999
+  },
+  {
+   "name": "Lucky Crown",
+   "coins": 14999
+  },
+  {
+   "name": "Invincible Hammer",
+   "coins": 14999
+  },
+  {
+   "name": "Chrono Rewinder",
+   "coins": 14999
+  },
+  {
+   "name": "Storm Blade",
+   "coins": 14999
+  },
+  {
+   "name": "Crystal Heart",
+   "coins": 14999
+  },
+  {
+   "name": "Dream Ride",
+   "coins": 15000
+  },
+  {
+   "name": "Paris",
+   "coins": 15000
+  },
+  {
+   "name": "Battle Champion",
+   "coins": 15000
+  },
+  {
+   "name": "Sneaky Jockey",
+   "coins": 15000
+  },
+  {
+   "name": "Golden Gallop",
+   "coins": 15000
+  },
+  {
+   "name": "Crocodile",
+   "coins": 15000
+  },
+  {
+   "name": "Leopard",
+   "coins": 15000
+  },
+  {
+   "name": "Rosa Nebula",
+   "coins": 15000
+  },
+  {
+   "name": "Future Journey",
+   "coins": 15000
+  },
+  {
+   "name": "Party On&On",
+   "coins": 15000
+  },
+  {
+   "name": "Time for Family",
+   "coins": 15000
+  },
+  {
+   "name": "Beach Pier",
+   "coins": 15000
+  },
+  {
+   "name": "Stadium",
+   "coins": 15999
+  },
+  {
+   "name": "Amusement Park",
+   "coins": 17000
+  },
+  {
+   "name": "Diamond Flight",
+   "coins": 18000
+  },
+  {
+   "name": "Rust vs World",
+   "coins": 18999
+  },
+  {
+   "name": "Fly Love",
+   "coins": 19999
+  },
+  {
+   "name": "Red Devil Corgi",
+   "coins": 20000
+  },
+  {
+   "name": "Castle Fantasy",
+   "coins": 20000
+  },
+  {
+   "name": "TikTok Shuttle",
+   "coins": 20000
+  },
+  {
+   "name": "Premium Shuttle",
+   "coins": 20000
+  },
+  {
+   "name": "Level Ship",
+   "coins": 21000
+  },
+  {
+   "name": "Infinite Heart",
+   "coins": 23999
+  },
+  {
+   "name": "Cyber Roar",
+   "coins": 25999
+  },
+  {
+   "name": "Skyforge Citadel",
+   "coins": 25999
+  },
+  {
+   "name": "Light Castle",
+   "coins": 25999
+  },
+  {
+   "name": "Undersea Kingdom",
+   "coins": 25999
+  },
+  {
+   "name": "Phoenix",
+   "coins": 25999
+  },
+  {
+   "name": "Adam’s Dream",
+   "coins": 25999
+  },
+  {
+   "name": "Dragon Flame",
+   "coins": 26999
+  },
+  {
+   "name": "Lion",
+   "coins": 29999
+  },
+  {
+   "name": "Gorilla",
+   "coins": 30000
+  },
+  {
+   "name": "Zeus",
+   "coins": 34000
+  },
+  {
+   "name": "Leon and Lion",
+   "coins": 34000
+  },
+  {
+   "name": "TikTok Universe+",
+   "coins": 34999
+  },
+  {
+   "name": "TikTok Stars",
+   "coins": 39999
+  },
+  {
+   "name": "Thunder Falcon",
+   "coins": 39999
+  },
+  {
+   "name": "Fire Phoenix",
+   "coins": 41999
+  },
+  {
+   "name": "Legend Marcellus",
+   "coins": 42999
+  },
+  {
+   "name": "King Leonardo",
+   "coins": 42999
+  },
+  {
+   "name": "Pegasus",
+   "coins": 42999
+  },
+  {
+   "name": "Valerian's Oath",
+   "coins": 43999
+  },
+  {
+   "name": "Julius the Champion",
+   "coins": 43999
+  },
+  {
+   "name": "TikTok Universe",
+   "coins": 44999
+  },
+  {
+   "name": "TikTok Universe",
+   "coins": 44999
+  }
+ ]
+}
