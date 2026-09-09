@@ -1,0 +1,287 @@
+<!--
+  Gift overlay for TikTok LIVE Studio.
+
+  Add it as a Link source pointing at this file, or serve the folder and use the
+  local URL. Background is transparent, so it composites straight over the game.
+
+  EDIT THE GIFTS ARRAY BELOW. Each entry needs:
+    name    the gift's exact name as it appears in the TikTok panel
+    coins   its cost. Not shown on the card - kept so you can sort the list
+            by price and so it is easy to turn back on later.
+    icon    the gift's icon URL from TikTok's CDN (see note under the array)
+    effect  the banner name your bridge prints, e.g. WEBBED
+    blurb   one short line, first person, on what actually happens.
+            Keep it accurate - viewers notice when it lies.
+    kind    'harm' or 'help' - this drives the colour, so get it right
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Gift overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --slate:      #1b1d23;
+    --slate-lift: #262932;
+    --harm:       #e03131;
+    --help:       #37b24d;
+    --coin:       #ffc61a;
+    --text:       #f2f3f5;
+    --text-dim:   #9aa0ab;
+
+    --card-w: 400px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    background: transparent;
+    font-family: Inter, system-ui, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Anchor the card. Change to top/right etc. to move it. */
+  body {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    height: 100vh;
+    padding: 24px;
+  }
+
+  .card {
+    width: var(--card-w);
+    background: var(--slate);
+    border: 3px solid var(--harm);
+    border-radius: 2px;
+    box-shadow: 0 0 0 3px rgba(0,0,0,.55), 0 10px 30px rgba(0,0,0,.45);
+    overflow: hidden;
+    transition: border-color .25s;
+  }
+  .card[data-kind="help"] { border-color: var(--help); }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 18px;
+  }
+
+  .icon {
+    width: 68px;
+    height: 68px;
+    flex: 0 0 68px;
+    object-fit: contain;
+    image-rendering: auto;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,.5));
+  }
+  /* Shown only when the icon URL is missing or fails to load. */
+  .icon-fallback {
+    width: 68px; height: 68px; flex: 0 0 68px;
+    display: none;
+    align-items: center; justify-content: center;
+    background: var(--slate-lift);
+    color: var(--text-dim);
+    font-family: Silkscreen, monospace;
+    font-size: 11px;
+    text-align: center;
+    line-height: 1.3;
+    padding: 6px;
+  }
+
+  .meta { min-width: 0; flex: 1; }
+
+  .giftline {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .giftname {
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .effect {
+    font-family: Silkscreen, monospace;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.05;
+    color: var(--harm);
+    margin-bottom: 4px;
+    word-break: break-word;
+  }
+  .card[data-kind="help"] .effect { color: var(--help); }
+
+  .blurb {
+    font-size: 14px;
+    color: var(--text-dim);
+    line-height: 1.35;
+  }
+
+  /* Verdict strip: the fastest read on the whole card. */
+  .verdict {
+    font-family: Silkscreen, monospace;
+    font-size: 12px;
+    letter-spacing: .06em;
+    padding: 7px 18px;
+    background: var(--harm);
+    color: #12130f;
+  }
+  .card[data-kind="help"] .verdict { background: var(--help); }
+
+  .timer {
+    height: 3px;
+    background: rgba(255,255,255,.12);
+  }
+  .timer span {
+    display: block;
+    height: 100%;
+    width: 100%;
+    background: var(--harm);
+    transform-origin: left;
+  }
+  .card[data-kind="help"] .timer span { background: var(--help); }
+
+  .swap { animation: swap .3s ease-out; }
+  @keyframes swap {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .swap { animation: none; }
+    .timer span { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="card" data-kind="harm">
+  <div class="row">
+    <img class="icon" id="icon" alt="">
+    <div class="icon-fallback" id="iconFallback">NO<br>ICON</div>
+    <div class="meta">
+      <div class="giftline">
+        <span class="giftname" id="giftname">Rose</span>
+      </div>
+      <div class="effect" id="effect">TNT</div>
+      <div class="blurb" id="blurb">One stick of TNT drops on me</div>
+    </div>
+  </div>
+  <div class="verdict" id="verdict">SEND THIS TO MAKE MY RUN HARDER</div>
+  <div class="timer"><span id="bar"></span></div>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// EDIT HERE
+//
+// Getting the real icon URLs: TikTok returns them in the gift payload at
+// gift.image.urlList, and in the gift/list endpoint that --catalog reads.
+// Extend --catalog to save the icon URL per gift, then paste them in below.
+// A missing or broken URL shows a placeholder rather than an empty gap.
+//
+// Keep this list short. Ten entries is about the limit for a vertical crop;
+// past that nobody reads it and everyone defaults to roses. Unlisted gifts
+// still work through the coin-tier fallback, they just are not advertised.
+// ---------------------------------------------------------------------------
+
+const ROTATE_MS = 4500;
+
+const GIFTS = [
+  { name: 'Rose',        coins: 1,    icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp', effect: 'TNT',        blurb: 'One stick of TNT drops on me',       kind: 'harm' },
+  { name: 'GG',          coins: 1,    icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/3f02fa9594bd1495ff4e8aa5ae265eef~tplv-obj.webp', effect: 'WEBBED',     blurb: 'One cobweb on me. Spam it to bury me.', kind: 'harm' },
+  { name: 'Heart Me',    coins: 1,    icon: 'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/composed.b326356a360b67b367c5cae58fe337b1.png~tplv-obj.webp', effect: 'GOLDEN APPLE', blurb: 'One golden apple into my inventory', kind: 'help' },
+  { name: 'Perfume',     coins: 20,   icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/20b8f61246c7b6032777bb81bf4ee055~tplv-obj.webp', effect: 'FLOAT',      blurb: 'I float up for 20s, then fall',      kind: 'harm' },
+  { name: 'Fist Bump',   coins: 90,   icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/608e8d4f63da39e41f5198459d6274f7.png~tplv-obj.webp', effect: 'SECOND WIND', blurb: 'Regeneration IV on me for 60s',     kind: 'help' },
+  { name: 'Hand Heart',  coins: 100,  icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/6cd022271dc4669d182cad856384870f~tplv-obj.webp', effect: 'BURIED',     blurb: 'I drop 12 blocks, sealed in above',  kind: 'harm' },
+  { name: 'Balloons',    coins: 200,  icon: 'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/c370d5c4ab6e5971b6b17de3eab6f6d4.png~tplv-obj.webp', effect: 'FLOOR GONE', blurb: 'The floor under me disappears',      kind: 'harm' },
+  { name: 'Cello Romance', coins: 299, icon: 'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/4756a2a4604d2cb5bb5b0639b259e9b5.png~tplv-obj.webp', effect: 'IRON KIT',  blurb: 'Full iron armour, sword and pickaxe', kind: 'help' },
+  { name: 'Money Gun',   coins: 500,  icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/e0589e95a2b41970f0f30f6202f5fce6~tplv-obj.webp', effect: 'INVENTORY WIPED', blurb: 'My whole inventory wiped',      kind: 'harm' },
+  { name: 'Sports Car',  coins: 7000, icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/e7ce188da898772f18aaffe49a7bd7db~tplv-obj.webp', effect: 'THE FINALE', blurb: 'Nine seconds of chaos, then 20 withers', kind: 'harm' },
+];
+
+const VERDICT = {
+  harm: 'SEND THIS TO MAKE MY RUN HARDER',
+  help: 'SEND THIS TO HELP MY RUN',
+};
+
+// ---------------------------------------------------------------------------
+
+const el = {
+  card:     document.getElementById('card'),
+  icon:     document.getElementById('icon'),
+  fallback: document.getElementById('iconFallback'),
+  giftname: document.getElementById('giftname'),
+  effect:   document.getElementById('effect'),
+  blurb:    document.getElementById('blurb'),
+  verdict:  document.getElementById('verdict'),
+  bar:      document.getElementById('bar'),
+};
+
+// Alternate harm and help so both are always in rotation, rather than a run of
+// eight punishments followed by two rewards.
+function interleave(list) {
+  const harm = list.filter(g => g.kind === 'harm');
+  const help = list.filter(g => g.kind === 'help');
+  const out = [];
+  const ratio = help.length ? Math.max(1, Math.round(harm.length / help.length)) : Infinity;
+  let h = 0, p = 0;
+  while (h < harm.length || p < help.length) {
+    for (let i = 0; i < ratio && h < harm.length; i++) out.push(harm[h++]);
+    if (p < help.length) out.push(help[p++]);
+  }
+  return out;
+}
+
+const ORDER = interleave(GIFTS);
+let i = 0;
+
+function show(gift) {
+  el.card.dataset.kind = gift.kind;
+  el.giftname.textContent = gift.name;
+  el.effect.textContent = gift.effect;
+  el.blurb.textContent = gift.blurb;
+  el.verdict.textContent = VERDICT[gift.kind];
+
+  if (gift.icon) {
+    el.icon.src = gift.icon;
+    el.icon.style.display = '';
+    el.fallback.style.display = 'none';
+  } else {
+    el.icon.style.display = 'none';
+    el.fallback.style.display = 'flex';
+  }
+
+  el.card.classList.remove('swap');
+  void el.card.offsetWidth;
+  el.card.classList.add('swap');
+
+  el.bar.style.transition = 'none';
+  el.bar.style.transform = 'scaleX(1)';
+  void el.bar.offsetWidth;
+  el.bar.style.transition = `transform ${ROTATE_MS}ms linear`;
+  el.bar.style.transform = 'scaleX(0)';
+}
+
+el.icon.addEventListener('error', () => {
+  el.icon.style.display = 'none';
+  el.fallback.style.display = 'flex';
+});
+
+show(ORDER[0]);
+setInterval(() => {
+  i = (i + 1) % ORDER.length;
+  show(ORDER[i]);
+}, ROTATE_MS);
+</script>
+</body>
+</html>

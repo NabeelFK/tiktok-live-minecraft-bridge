@@ -55,6 +55,7 @@ The bridge is the only piece in this repo. The other two are Minecraft, and
 | `docs/SETUP.md` | First-time setup, for someone who has never run a Minecraft server. |
 | `docs/GOTCHAS.md` | The silent failures. Read this before writing your own gifts. |
 | `examples/` | A hand-written sample recording, so `--replay` works before you have anything. |
+| `tiktoklive-overlay/` | A stream overlay that tells viewers which gift does what. |
 | `.env.example` | Template for `.env`, with notes on each variable. Copy it, fill it in. |
 
 ---
@@ -207,6 +208,41 @@ file explains why it is a paste-into-the-console snippet and not an HTTP request
 
 Either way the file is dated the moment you make it. `--keys` warns when it is more than
 about a month old.
+
+---
+
+## The gift overlay
+
+A viewer cannot send the right gift if they do not know what it does.
+[`tiktoklive-overlay/gift-overlay.html`](tiktoklive-overlay/gift-overlay.html) is a
+single self-contained page that rotates through the mapped gifts, showing each one's real
+TikTok icon, the effect name, and a line on what happens. Help gifts are green, sabotage
+red, and a verdict strip says which so the two cannot be confused at phone size.
+
+The effect names on the cards are the same words the bridge prints in chat when a gift
+lands, so a viewer reads `FLOOR GONE` on the overlay and then sees `FLOOR GONE` in chat a
+second after they send it.
+
+```sh
+cd tiktoklive-overlay
+npx serve .
+```
+
+Add it in LIVE Studio as **Add source -> Link**, pointing at
+`http://127.0.0.1:3000/gift-overlay.html`. Use the `127.0.0.1` form: LIVE Studio has
+rejected the `localhost` spelling of the same address. Include the filename, since `/`
+serves a directory listing rather than the overlay. If that address is refused as well,
+use your machine's LAN address on the same port, or host the file somewhere and point at
+that. The background is transparent, so it composites over the game.
+
+**Leave that terminal open for the whole stream.** It is the web server; close it and the
+source goes blank.
+
+**The gift list in that file is one streamer's, and is meant to be replaced.** Gift
+availability and prices differ by region and TikTok retires gifts, so edit the `GIFTS`
+array to match your own map and your own panel.
+[tiktoklive-overlay/README.md](tiktoklive-overlay/README.md) explains every field and
+where the icon URLs come from.
 
 ---
 
