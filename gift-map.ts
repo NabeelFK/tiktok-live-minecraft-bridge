@@ -46,8 +46,8 @@ import {
 // Every key in GIFTS must appear here. --keys fails on a missing entry.
 export const ASSUMED_COINS: Record<string, number> = {
   rose: 1, tiktok: 1, gg: 1, icecreamcone: 1, heartme: 1,
-  fingerheart: 5, friendshipnecklace: 10, perfume: 20, doughnut: 30, fistbump: 90,
-  papercrane: 99, hatandmustache: 99, loveyou: 199, handheart: 100,
+  fingerheart: 5, friendshipnecklace: 10, perfume: 20, doughnut: 30,
+  papercrane: 99, hatandmustache: 99, loveyou: 199, handheart: 100, flowers: 100,
   balloons: 200, corgi: 299, celloromance: 299, moneygun: 500, swan: 699,
   train: 899, galaxy: 1000, sportscar: 7000,
 };
@@ -145,23 +145,6 @@ export const GIFTS: Record<string, Action> = {
     ...ring(4, 2, (dx, dz) => at(`summon skeleton ~${dx} ~ ~${dz}`)),
   ],
 
-  // HELP 2 of 4. SECOND WIND. Regeneration IV for a full minute.
-  // No longer nether-specific: this is a genuine save at any point in the run,
-  // whether the player is on fire, at half a heart, or mid-fight.
-  //
-  // Key history: `coffee` (30) was never a CA gift at all. `bouncingball` (45) was,
-  // in the June 2026 catalog, and has since been retired - a live gift panel checked
-  // by hand in September 2026 does not list it. Now Fist Bump, 90 coins, confirmed
-  // present in the panel. Effect unchanged; the price doubled.
-  //
-  // At 90 this is the most expensive gift in the time-loss band and sits nine coins
-  // under the resource-loss band, so a viewer choosing between helping and hurting
-  // pays almost the same either way. That is a deliberate cliff, not an accident.
-  fistbump: () => [
-    banner('SECOND WIND', 'green'),
-    `effect give ${MC_PLAYER} minecraft:regeneration 60 3`,
-  ],
-
   // ═══════════════ 99 TO 199 COINS: RESOURCE LOSS. Costs items and gear. ═══════════════
   // Nothing in this tier spawns anything. The full inventory wipe used to live here at
   // 99 coins and has been moved to `moneygun` (500): a total wipe is resource loss and
@@ -221,6 +204,30 @@ export const GIFTS: Record<string, Action> = {
       at('fill ~-1 ~-1 ~-1 ~1 ~-12 ~1 air'),
     ];
   },
+
+  // HELP 2 of 4. SECOND WIND. Regeneration IV for a full minute.
+  // No longer nether-specific: this is a genuine save at any point in the run,
+  // whether the player is on fire, at half a heart, or mid-fight.
+  //
+  // Key history, and a lesson about how gifts get verified. `coffee` (30) was never a
+  // CA gift at all. `bouncingball` (45) was, and has been retired. `fistbump` (90) was
+  // a mistake: it was read off a gift panel by eye and it does not exist in this region
+  // at all. Four sources agree on that - the June scrape, the streamtoearn CA page, the
+  // account's own Viewer Wishes panel, and a --catalog capture of the live room.
+  //
+  // Now Flowers, present in the --catalog capture at exactly 100 coins.
+  //
+  // NOTE THE PRICE. At 100 this costs exactly what `handheart` (BURIED) costs and one
+  // coin more than the two 99-coin punishments, so within this band price no longer
+  // separates helping from hurting at all. The name, the icon and the overlay's colour
+  // are the only things that do, which is precisely why the overlay has a verdict strip.
+  // It is filed in the 99-199 block for price order, but the tier headings describe the
+  // PUNISHMENT ladder. The four HELP gifts run alongside that ladder at 1, 100, 299 and
+  // 699 rather than inside it, and this one shares its rung with BURIED.
+  flowers: () => [
+    banner('SECOND WIND', 'green'),
+    `effect give ${MC_PLAYER} minecraft:regeneration 60 3`,
+  ],
 
   // ═══════════════ 199 TO 699 COINS: POSITION LOSS. Costs progress. ═══════════════
 
@@ -411,5 +418,12 @@ export function fallback(coins: number): string[] {
 export const PRICED: Record<string, PricedVariant[]> = {
   // "Love You" (199) -> GEAR GONE.  "Love you" (1) -> fallback(1), i.e. one TNT.
   loveyou: [{ minCoins: 199 }],
+
+  // The panel sells TWO gifts called "Sports Car", at 4,999 and 7,000, and both
+  // normalize to `sportscar`. Ungated, the cheaper one bought the finale for 2,000
+  // coins less than intended. Only the 7,000 one fires it now; 4,999 falls through to
+  // fallback(4999), which is the 899+ tier, the warden. Found by --keys against a fresh
+  // --catalog capture: the June scrape listed only one Sports Car.
+  sportscar: [{ minCoins: 7000 }],
 };
 

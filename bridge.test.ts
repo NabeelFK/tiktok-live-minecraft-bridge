@@ -136,6 +136,26 @@ test('resolve() gates the loveyou collision on the UNIT price, never the streak 
   );
 });
 
+test('resolve() gates the sportscar collision so only the dear one buys the finale', () => {
+  // The panel sells two gifts called "Sports Car", 4,999 and 7,000, and both normalize
+  // to `sportscar`. Ungated, the cheaper one bought the finale for 2,000 coins less.
+  assert.equal(bannerOf(resolve('Sports Car', 1, 7000)), 'THE FINALE');
+  assert.equal(bannerOf(resolve('Sports Car', 1, 4999)), 'WARDEN', 'falls through to fallback(4999)');
+  assert.notEqual(
+    bannerOf(resolve('Sports Car', 1, 4999)),
+    'THE FINALE',
+    'the 4,999 Sports Car must not buy the 7,000 effect',
+  );
+  // The unit-price rule holds for the GATE: 4,999 never buys the mapped body, whatever
+  // the streak count. But the fallback ladder is scored on the TOTAL delivered, so a 2x
+  // streak of the 4,999 gift is 9,998 coins and does reach the finale through
+  // fallback(9998). Same judgement call as the loveyou streak rows: a viewer who really
+  // has delivered that many coins gets what that many coins buys. Expensive gifts are
+  // not streakable in practice, so this is a documented edge rather than a live risk.
+  assert.equal(bannerOf(resolve('Sports Car', 2, 4999)), 'THE FINALE', 'fallback(9998)');
+  takeDeferred();   // the finale registered delayed stages
+});
+
 // ---------------------------------------------------------------- fallback()
 
 test('fallback() tier boundaries, both sides of every edge', () => {
