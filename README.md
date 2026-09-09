@@ -61,7 +61,7 @@ Assumes a Paper server with RCON enabled and a client joined to it. If you do no
 that yet, do [docs/SETUP.md](docs/SETUP.md) first - it is the harder half.
 
 ```sh
-git clone https://github.com/<your-account>/tiktok-live-minecraft-bridge.git
+git clone https://github.com/NabeelFK/tiktok-live-minecraft-bridge.git
 cd tiktok-live-minecraft-bridge
 npm ci
 cp .env.example .env      # then fill it in
