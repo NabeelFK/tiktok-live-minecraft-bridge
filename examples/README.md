@@ -34,9 +34,13 @@ folder.
 | 11 | No `gift.name` | What a library field-path change looks like. Prints a one-time warning instead of silently turning every gift into one TNT. |
 | 12 | Hand Heart, 100 coins | BURIED, the cheap **delayed** case: the pit opens now, and the stone seal over your head is scheduled for 2.5 seconds later. |
 | 13 | Sports Car, 7,000 coins | THE FINALE. Nine seconds, five stages, 40-odd commands scheduled after the first eight. |
-| 14 | A truncated line | What `--spy` leaves behind when it is killed mid-write. Skipped with a warning, not fatal. |
+| 14 | Like, 120 likes | The first like event. Sets the baseline and fires nothing. |
+| 15 | Like, total 540 | Crosses 500. One creeper. |
+| 16 | Like, 1,100 in one event | Crosses 1,000 and 1,500 together. Still **one** creeper, and the log says two thresholds went by. |
+| 17 | Like, `count: "lots"`, `total: {}` | A like payload with both numbers malformed. Warns once, counts nothing, does not throw. |
+| 18 | A truncated line | What `--spy` leaves behind when it is killed mid-write. Skipped with a warning, not fatal. |
 
-Lines 10, 11 and 14 are the failure modes: a number arriving as a string, a field path
+Lines 10, 11, 17 and 18 are the failure modes: a number arriving as a string, a field path
 that has moved, and a half-written file. A run that handles all three is a bridge that
 will not die in the middle of a stream.
 

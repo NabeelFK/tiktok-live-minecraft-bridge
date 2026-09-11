@@ -225,6 +225,22 @@ whose *behaviour* rather than syntax is the point.
 
 ## Smaller traps, same shape
 
+**Likes batch, and their field names have already moved once.** A like event is not one
+like. `WebcastLikeMessage` carries `count` (the likes in that event, routinely ten or
+more) and `total` (the room's running total for the stream). Counting events undercounts
+by an order of magnitude. An earlier major of the proto called the same two fields
+`likeCount` and `totalLikeCount`, which is still visible in
+`tiktok-live-proto/dist/node/v1.d.ts` next to the v3 shape actually in use. Read the
+installed types rather than a tutorial, and note that `total` is an int64: it arrives as
+a **string**, so anything that adds to it without coercing gets `"110" + 1 === "1101"`.
+
+**A running total from the server beats a counter you keep yourself.** A local sum resets
+on every reconnect and every restart, so a viewer's progress towards a threshold is lost
+to an outage they cannot see. The flip side is that a bridge started mid-stream sees a
+total of 5,000 on its very first event, and a naive threshold check then owes a reward
+for every threshold below it, all at once, for likes nobody watching ever saw. Credit
+only what the first event itself carried and adopt the rest as a baseline.
+
 **Streakable gifts fire on every tick of the streak.** A gift with `type === 1` sends a
 repeated event as the viewer holds the button. Acting on each one turns a single spammed
 rose into thirty separate triggers. Wait for the end-of-streak flag and act once, using

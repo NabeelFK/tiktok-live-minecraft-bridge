@@ -16,6 +16,9 @@
  * Configuration comes from the environment - MC_PLAYER, TIKTOK_USER, RCON_PASSWORD and
  * EULER_API_KEY. Copy .env.example and fill it in; docs/SETUP.md is the walkthrough.
  *
+ * Gifts, follows and likes all land here. Likes are counted from the room's running
+ * total and every LIKES_PER_CREEPER of them spawns a creeper; see the likes section.
+ *
  * This file is the engine. Which gift does what lives in gift-map.ts, and the builders
  * that map is written in live in gift-helpers.ts. Customising the show means editing
  * gift-map.ts and running `--keys`; it does not mean reading this file.
@@ -29,6 +32,7 @@ import { EULER_API_KEY, RCON_PASSWORD, TIKTOK_USER, envSourceHint } from './env'
 import { ASSUMED_COINS, GIFTS, PRICED, fallback } from './gift-map';
 import {
   MC_PLAYER,
+  at,
   banner,
   installScheduler,
   key,
@@ -127,7 +131,7 @@ let rconAttempt = 0;
 let retryScheduled = false;
 let shuttingDown = false;
 let dropWarned = false;
-let stats = { sent: 0, expired: 0, dropped: 0, reconnects: 0, rejected: 0, followsDropped: 0 };
+let stats = { sent: 0, expired: 0, dropped: 0, reconnects: 0, rejected: 0 };
 
 // Minecraft answers a bad command with error TEXT over RCON, it does not reject the
 // promise. Ignoring the reply is how a typo'd command silently does nothing all stream.
@@ -389,13 +393,11 @@ async function dryDrainLoop() {
 // WebcastEvent.FOLLOW carries a WebcastSocialMessage: `user.nickname` and `user.id`,
 // the same shape gifts use, so sanitize() applies unchanged.
 //
-// Two separate guards, because follow bursts have two different causes:
-//   - the same account re-following to farm the reward -> dedupe on user id
-//   - a raid or a bot wave of distinct accounts        -> token bucket per minute
-// Without the bucket a 200-account raid is 200 golden carrots in one inventory.
-
-const FOLLOW_CARROTS_PER_MIN = 6;
-const followWindow: number[] = [];
+// One guard, on identity rather than on rate: the same account re-following cannot
+// farm repeat carrots. There is deliberately NO per-minute cap, so a raid of 200
+// distinct accounts is 200 carrots. That is a real outcome to be aware of, not a bug:
+// each one is a different person following for the first time, and the queue's own
+// backlog cap is what stops it becoming unbounded lag.
 const seenFollowers = new Set<string>();
 
 function handleFollow(data: any, tag = 'follow') {
@@ -408,17 +410,153 @@ function handleFollow(data: any, tag = 'follow') {
   }
   seenFollowers.add(id);
 
-  const now = Date.now();
-  while (followWindow.length && now - followWindow[0] > 60_000) followWindow.shift();
-  if (followWindow.length >= FOLLOW_CARROTS_PER_MIN) {
-    stats.followsDropped++;
-    console.log(`[${tag}] ${name} rate limited, no carrot`);
-    return;
-  }
-  followWindow.push(now);
-
   console.log(`[${tag}] ${name} -> golden carrot`);
   enqueue([banner(`NEW FOLLOWER ${name}`, 'green'), `give ${MC_PLAYER} golden_carrot 1`]);
+}
+
+// ---------- likes ----------
+// WebcastEvent.LIKE carries a WebcastLikeMessage. Field paths here were READ from the
+// installed packages, not assumed, because this project has been bitten by them moving
+// before (docs/GOTCHAS.md):
+//
+//   tiktok-live-connector/dist/index-*.d.ts
+//     LIKE = "like"  ->  EventHandler<WebcastLikeMessage>
+//   tiktok-live-proto/dist/node/v3.d.ts
+//     interface WebcastLikeMessage { count: number; total: string; user: User; ... }
+//
+// The connector emits it verbatim: "like" falls through the default branch of
+// processDecodedData, so unlike gifts there is no enrichment and no renaming.
+//
+//   count  likes carried by THIS event. Likes batch - one event routinely carries
+//          ten or more - so counting events instead of likes undercounts badly.
+//   total  the room's running total for the stream, as a STRING (int64 in the proto).
+//
+// Both are present, so the running total does the counting and a local sum never does.
+// A local sum resets on every reconnect and every restart, and a viewer who tapped
+// ninety times would have to earn them again.
+//
+// NOTE: an older major of the proto called these `likeCount` and `totalLikeCount`
+// (still visible in tiktok-live-proto/dist/node/v1.d.ts). If likes ever stop firing,
+// that rename is the first thing to check with --spy.
+
+// 500, not 100. There is no rate limit behind this, so the threshold is the only thing
+// governing how often a creeper lands. At 100 a busy room satisfies it continuously and
+// the number stops meaning anything; at 500 a milestone is an event that happens a few
+// times an hour. It matters more here than for any other effect because a creeper is the
+// only thing in the map that permanently changes the terrain: blindness wears off and
+// gear can be re-got, but holes in the floor accumulate for the whole stream.
+export const LIKES_PER_CREEPER = 500;
+
+/**
+ * How many `step` boundaries lie between two running totals.
+ * Pure, so the burst case is testable without a stream.
+ */
+export function likeThresholdsCrossed(before: number, after: number, step = LIKES_PER_CREEPER): number {
+  if (!Number.isFinite(before) || !Number.isFinite(after)) return 0;
+  if (!Number.isFinite(step) || step <= 0) return 0;
+  if (after <= before) return 0;
+  return Math.floor(after / step) - Math.floor(before / step);
+}
+
+export type LikeDecision = {
+  /** seed: first event, nothing owed. reset: total went backwards. none: no boundary. */
+  kind: 'seed' | 'reset' | 'none' | 'creeper';
+  /** the running total to carry forward */
+  total: number;
+  /** likes this event carried, after coercion */
+  counted: number;
+  /** false when the payload had no usable .total and the count had to be summed locally */
+  usedTotal: boolean;
+  /** boundaries this one event crossed. Can be >1; it still buys one creeper. */
+  crossed: number;
+  /** the highest boundary reached, for the banner */
+  milestone: number;
+};
+
+/**
+ * Decide what one like event is worth. All of the counting lives here and none of the
+ * state does, so every branch is reachable from a test - including the wire shapes,
+ * which is why this takes `unknown` and coerces rather than trusting the caller.
+ * `total` arrives as a STRING off the wire (int64 in the proto).
+ *
+ * ONE creeper per event, however many thresholds that event crossed. A single payload
+ * carrying 300 likes crosses three boundaries, and three creepers at once is not three
+ * times the punishment - it is a guaranteed death and a crater, for an action nobody
+ * paid for. `crossed` is still reported so the console can say what really happened.
+ */
+export function decideLike(
+  prev: number | null,
+  count: unknown,
+  reportedTotal: unknown,
+  step = LIKES_PER_CREEPER,
+): LikeDecision {
+  const counted = Math.max(0, num(count, 0));
+  // NOT num() for the total. num() leans on Number(), and Number(null), Number('')
+  // and Number([]) are all 0, so a MISSING total would read as "this stream has zero
+  // likes" - which is below anything already counted, so every event would look like
+  // a reset and the counter would never advance. A total is only a total if it
+  // arrived as a number or as a non-empty numeric string, which is the wire shape.
+  const asTotal =
+    typeof reportedTotal === 'number' ? Math.trunc(reportedTotal)
+    : typeof reportedTotal === 'string' && reportedTotal.trim() !== '' ? Math.trunc(Number(reportedTotal))
+    : NaN;
+  const usedTotal = Number.isFinite(asTotal) && asTotal >= 0;
+  const total = usedTotal ? asTotal : (prev ?? 0) + counted;
+  const base = { total, counted, usedTotal };
+
+  if (prev !== null && total < prev) return { ...base, kind: 'reset', crossed: 0, milestone: 0 };
+
+  // First event this session. Credit only the likes THIS event carried: a bridge
+  // started when the room is already at 5,000 owes nothing for the 5,000 it never
+  // saw, but the ten in this payload are real and were witnessed.
+  const before = prev === null ? Math.max(0, total - counted) : prev;
+
+  const crossed = likeThresholdsCrossed(before, total, step);
+  if (crossed > 0) {
+    return { ...base, kind: 'creeper', crossed, milestone: Math.floor(total / step) * step };
+  }
+  return { ...base, kind: prev === null ? 'seed' : 'none', crossed: 0, milestone: 0 };
+}
+
+/**
+ * What a like milestone actually runs. One builder because --verify checks these
+ * commands too, and a second copy of the literal is exactly how a verified command
+ * and a fired command drift apart.
+ */
+export function likeCreeperCommands(milestone: number): string[] {
+  return [
+    banner(`${milestone} LIKES: CREEPER`, 'yellow'),
+    at('summon creeper ~2 ~ ~2'),
+  ];
+}
+
+let likeTotal: number | null = null;
+let likeTotalWarned = false;
+
+function handleLike(data: any, tag = 'like') {
+  const name = sanitize(String(data?.user?.nickname ?? 'someone'));
+  const first = likeTotal === null;
+  const d = decideLike(likeTotal, data?.count, data?.total, LIKES_PER_CREEPER);
+  likeTotal = d.total;
+
+  if (!d.usedTotal && !likeTotalWarned) {
+    likeTotalWarned = true;
+    console.warn(`[${tag}] like payloads carry no usable .total, counting locally instead.`);
+    console.warn('        A reconnect will reset that count. Run --spy and compare the');
+    console.warn('        payload against docs/GOTCHAS.md - the field has moved before.');
+  }
+
+  if (first) console.log(`[${tag}] like total starts at ${d.total}, counting from here`);
+
+  if (d.kind === 'reset') {
+    console.log(`[${tag}] like total went backwards, treating ${d.total} as a new stream`);
+    return;
+  }
+  if (d.kind !== 'creeper') return;
+
+  const extra = d.crossed > 1 ? ` (${d.crossed} thresholds in one event, one creeper)` : '';
+  console.log(`[${tag}] ${name} +${d.counted} -> ${d.total} likes, ${d.milestone} milestone${extra}`);
+  enqueue(likeCreeperCommands(d.milestone));
 }
 
 // ---------- shared gift handler ----------
@@ -483,10 +621,13 @@ function guard(what: string, fn: () => void) {
 // No TikTok at all. Type "rose 5" and it runs the same resolve/queue path a real gift takes.
 // Add !<coins> to force the fallback tier, e.g.  "mystery gift 3 !1500"
 
+let fakeLikeTotal = 0;
+
 async function testMode() {
   await connectRcon();
   console.log('\nType: <gift name> [count] [!coins]   e.g.  rose 5     or    unknown thing !1500');
-  console.log('Or:   follow <name>                  to test the follow reward and its rate limit');
+  console.log('Or:   follow <name>                  to test the follow reward and the per-account dedupe');
+  console.log(`Or:   likes <n>                       to add n likes and cross the ${LIKES_PER_CREEPER}-like thresholds`);
   console.log('Known gifts:', Object.keys(GIFTS).join(', '));
   console.log('Anything else falls through to the coin-value fallback.\n');
 
@@ -495,10 +636,21 @@ async function testMode() {
     let parts = line.trim().split(/\s+/);
     if (!parts[0]) return;
 
-    // `follow <name>` exercises the follow path, rate limiter included.
+    // `follow <name>` exercises the follow path. Run it twice with the same name to
+    // see the dedupe: the second one is ignored, because the id is derived from it.
     if (parts[0].toLowerCase() === 'follow') {
       const who = parts.slice(1).join(' ') || 'tester';
       handleFollow({ user: { nickname: who, id: `test:${who.toLowerCase()}` } }, 'test');
+      return;
+    }
+
+    // `likes <n>` adds n to a running total and feeds a real-shaped payload through
+    // handleLike, so the threshold crossing and the burst coalescing are both exercised
+    // by hand. `total` is a string here because that is what the wire sends.
+    if (parts[0].toLowerCase() === 'likes') {
+      const n = Math.max(1, parseInt(parts[1] ?? '1', 10) || 1);
+      fakeLikeTotal += n;
+      handleLike({ count: n, total: String(fakeLikeTotal), user: { nickname: 'tester' } }, 'test');
       return;
     }
 
@@ -547,6 +699,20 @@ async function spyMode(username: string) {
     console.dir(data, { depth: 3 });
     sink.write(jsonl({ __event: 'follow', ...data }));
   });
+  // Likes are the highest-volume event on the wire by a wide margin, so the full dump
+  // is printed once - that is all you need to pin the field paths - and every event
+  // after it is one line. All of them are still written to the recording.
+  let likesSeen = 0;
+  tiktok.on(WebcastEvent.LIKE, (data: any) => {
+    likesSeen++;
+    if (likesSeen === 1) {
+      console.log('--- raw like payload (printed once, the rest are one line each) ---');
+      console.dir(data, { depth: 3 });
+    } else {
+      console.log(`[spy] like +${data?.count} total ${data?.total} (${likesSeen} like events so far)`);
+    }
+    sink.write(jsonl({ __event: 'like', ...data }));
+  });
   tiktok.on(ControlEvent.ERROR, (e: any) => console.error('[spy] error:', e?.message ?? e));
 
   const state = await tiktok.connect();
@@ -568,6 +734,7 @@ async function replayMode(file: string) {
     try { data = JSON.parse(line); }
     catch { console.warn(`[replay] line ${i + 1} is not JSON, skipping`); continue; }
     if (data.__event === 'follow') guard('replay:follow', () => handleFollow(data, 'replay:follow'));
+    else if (data.__event === 'like') guard('replay:like', () => handleLike(data, 'replay:like'));
     else guard('replay', () => handleGift(data, 'replay'));
     await sleep(400);
   }
@@ -612,6 +779,7 @@ async function liveMode(username: string) {
     // stream. One malformed payload is not worth the whole show.
     tiktok.on(WebcastEvent.GIFT, (data: any) => guard('gift', () => handleGift(data)));
     tiktok.on(WebcastEvent.FOLLOW, (data: any) => guard('follow', () => handleFollow(data)));
+    tiktok.on(WebcastEvent.LIKE, (data: any) => guard('like', () => handleLike(data)));
     tiktok.on(ControlEvent.ERROR, (e: any) => console.error('[tiktok] error:', e?.message ?? e));
     tiktok.on(ControlEvent.DISCONNECTED, () => {
       if (shuttingDown) return;
@@ -859,6 +1027,7 @@ async function verifyMode() {
       if (v.action) addGift(`${name}@>=${v.minCoins}`, v.action(1));
   for (const coins of [1, 5, 25, 99, 299, 700, 1000, 7000]) addGift(`fallback:${coins}c`, fallback(coins));
   add('follow', [banner('NEW FOLLOWER tester', 'green'), `give ${MC_PLAYER} golden_carrot 1`]);
+  add('likes', likeCreeperCommands(LIKES_PER_CREEPER));
 
   const delayedDupes = delayedCollected - delayedChecked;
   console.log(`\n[verify] checking ${samples.length} distinct commands against the live server`);
@@ -1102,7 +1271,8 @@ async function shutdown(code = 0) {
   }
   cancelPendingStages();
 
-  console.log(`\n[bridge] shutting down. sent=${stats.sent} rejected=${stats.rejected} expired=${stats.expired} dropped=${stats.dropped} reconnects=${stats.reconnects} followsRateLimited=${stats.followsDropped}`);
+  console.log(`\n[bridge] shutting down. sent=${stats.sent} rejected=${stats.rejected}` +
+    ` expired=${stats.expired} dropped=${stats.dropped} reconnects=${stats.reconnects}`);
   await rcon?.end().catch(() => {});
   process.exit(code);
 }

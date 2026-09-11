@@ -20,9 +20,13 @@ import assert from 'node:assert/strict';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 import {
+  LIKES_PER_CREEPER,
   cancelPendingStages,
   catalogAgeDays,
   catalogAge,
+  decideLike,
+  likeCreeperCommands,
+  likeThresholdsCrossed,
   normalizeCatalogGifts,
   pendingStageSummary,
   resolve,
@@ -396,4 +400,124 @@ test('catalogAgeDays() is what makes staleness visible', () => {
   assert.equal(catalogAgeDays('2026-06-23', now), 78, 'the drift that cost four gifts');
   assert.equal(catalogAgeDays(undefined, now), null, 'no date means no answer, not zero');
   assert.equal(catalogAgeDays('not a date', now), null);
+});
+
+// ---------------------------------------------------------------- likes
+
+test('likeThresholdsCrossed() counts boundaries, not likes', () => {
+  assert.equal(likeThresholdsCrossed(0, 99, 100), 0);
+  assert.equal(likeThresholdsCrossed(0, 100, 100), 1);
+  assert.equal(likeThresholdsCrossed(100, 199, 100), 0);
+  assert.equal(likeThresholdsCrossed(199, 200, 100), 1);
+  // The whole reason this is a function: one event carrying 250 likes crosses two or
+  // three boundaries depending on where it started, and counting events would say one.
+  assert.equal(likeThresholdsCrossed(90, 340, 100), 3);
+  assert.equal(likeThresholdsCrossed(100, 350, 100), 2);
+});
+
+test('likeThresholdsCrossed() never goes negative or infinite', () => {
+  assert.equal(likeThresholdsCrossed(500, 100, 100), 0, 'backwards buys nothing');
+  assert.equal(likeThresholdsCrossed(100, 100, 100), 0, 'standing still buys nothing');
+  assert.equal(likeThresholdsCrossed(NaN, 500, 100), 0);
+  assert.equal(likeThresholdsCrossed(0, NaN, 100), 0);
+  assert.equal(likeThresholdsCrossed(0, 500, 0), 0, 'a zero step would divide by zero');
+  assert.equal(likeThresholdsCrossed(0, 500, -100), 0);
+});
+
+test('decideLike() reads the STRING total the proto actually sends', () => {
+  // WebcastLikeMessage.total is an int64, which arrives as a string. Summing count
+  // locally instead is the bug this guards: it resets on every reconnect.
+  const d = decideLike(40, 70, '110', 100);
+  assert.equal(d.usedTotal, true);
+  assert.equal(d.total, 110);
+  assert.equal(d.kind, 'creeper');
+  assert.equal(d.milestone, 100);
+});
+
+test('decideLike() falls back to a local sum when there is no usable total', () => {
+  for (const bad of [undefined, null, '', 'lots', {}, -5, NaN]) {
+    const d = decideLike(40, 70, bad, 100);
+    assert.equal(d.usedTotal, false, `total ${JSON.stringify(bad)} should not be trusted`);
+    assert.equal(d.total, 110, 'so it sums 40 + 70 locally instead');
+    assert.equal(d.kind, 'creeper');
+  }
+});
+
+test('decideLike() credits only the likes the first event carried', () => {
+  // Restarting the bridge into a room already at 5,043 likes must not owe 50 creepers
+  // for likes nobody watching this session ever saw. 5,033 -> 5,043 crosses nothing.
+  const cold = decideLike(null, 10, '5043', 100);
+  assert.equal(cold.kind, 'seed');
+  assert.equal(cold.crossed, 0);
+  assert.equal(cold.total, 5043, 'but it does adopt the total as the new baseline');
+
+  // The likes in that first payload are real, though, so a boundary inside them counts.
+  const straddles = decideLike(null, 20, '5010', 100);
+  assert.equal(straddles.kind, 'creeper');
+  assert.equal(straddles.crossed, 1, '4,990 -> 5,010 crosses 5,000');
+  assert.equal(straddles.milestone, 5000);
+});
+
+test('decideLike() gives ONE creeper for a burst that crosses several thresholds', () => {
+  const d = decideLike(90, 250, '340', 100);
+  assert.equal(d.kind, 'creeper', 'one decision, not three');
+  assert.equal(d.crossed, 3, 'but it reports that three boundaries went by');
+  assert.equal(d.milestone, 300, 'and the banner names the highest one reached');
+  // The handler enqueues one body per 'creeper' decision, so crossed does not multiply
+  // the punishment. Three creepers at once is a death and a crater, for a free action.
+  assert.equal(likeCreeperCommands(d.milestone).filter((c) => c.includes('summon creeper')).length, 1);
+});
+
+test('decideLike() re-seeds rather than firing when the total goes backwards', () => {
+  // A reconnect into a different room, or a restarted stream. Not progress.
+  const d = decideLike(5000, 10, '12', 100);
+  assert.equal(d.kind, 'reset');
+  assert.equal(d.crossed, 0);
+  assert.equal(d.total, 12, 'and the new, lower total becomes the baseline');
+});
+
+test('decideLike() does nothing inside a band', () => {
+  const d = decideLike(101, 10, '111', 100);
+  assert.equal(d.kind, 'none');
+  assert.equal(d.crossed, 0);
+});
+
+test('decideLike() survives the payload shapes that killed handleGift once', () => {
+  // Same class of bug as repeatCount arriving as "twelve": a malformed number must not
+  // throw out of an event handler, it must degrade to doing nothing.
+  for (const count of [undefined, null, 'twelve', {}, [], -1, NaN, Infinity]) {
+    const d = decideLike(150, count, undefined, 100);
+    assert.ok(Number.isFinite(d.total), `count ${JSON.stringify(count)} produced ${d.total}`);
+    assert.equal(d.kind, 'none');
+  }
+});
+
+test('a like milestone announces itself and spawns exactly one creeper', () => {
+  const cmds = likeCreeperCommands(300);
+  assert.equal(bannerOf(cmds), '300 LIKES: CREEPER');
+  assert.equal(cmds.length, 2);
+  assert.match(cmds[1], /^execute at .* run summon creeper /, 'at the player, not at world origin');
+});
+
+test('nothing caps the milestones: every crossing decides a creeper', () => {
+  // The per-minute token buckets on follows and likes were removed deliberately, so the
+  // threshold is now the only thing governing how often a creeper lands. Ten crossings
+  // in a row all fire; there is no bucket left to swallow the later ones.
+  let prev = 0;
+  const fired: number[] = [];
+  for (let i = 1; i <= 10; i++) {
+    const d = decideLike(prev, LIKES_PER_CREEPER, String(i * LIKES_PER_CREEPER));
+    if (d.kind === 'creeper') fired.push(d.milestone);
+    prev = d.total;
+  }
+  assert.deepEqual(
+    fired,
+    Array.from({ length: 10 }, (_, i) => LIKES_PER_CREEPER * (i + 1)),
+  );
+});
+
+test('LIKES_PER_CREEPER is the only place the threshold is written down', () => {
+  const d = decideLike(LIKES_PER_CREEPER - 1, 1, String(LIKES_PER_CREEPER));
+  assert.equal(d.kind, 'creeper');
+  assert.equal(d.milestone, LIKES_PER_CREEPER);
 });

@@ -134,8 +134,8 @@ npm scripts for the same things, plus the two checks that need nothing at all:
 
 | Command | Needs | What it does |
 |---|---|---|
-| `--test` | server | Reads gift names from stdin and runs them for real. `rose 5` fires a 5x streak, `mystery !1500` forces the 1500-coin fallback tier, `follow bob` tests the follower reward. This is how you watch an effect and judge whether it reads on camera. |
-| `--spy <user>` | TikTok | Connects to anyone's live stream, prints raw gift and follow payloads, and records them to `spy-<user>-<timestamp>.jsonl` in the directory you ran it from. No Minecraft involved. Use it on a busy stream to collect real payloads. That file holds real viewers' display names and ids, so it is gitignored: keep it local. |
+| `--test` | server | Reads gift names from stdin and runs them for real. `rose 5` fires a 5x streak, `mystery !1500` forces the 1500-coin fallback tier, `follow bob` tests the follower reward, `likes 250` pushes the like counter across its thresholds. This is how you watch an effect and judge whether it reads on camera. |
+| `--spy <user>` | TikTok | Connects to anyone's live stream, prints raw gift, follow and like payloads, and records them to `spy-<user>-<timestamp>.jsonl` in the directory you ran it from. No Minecraft involved. Use it on a busy stream to collect real payloads. That file holds real viewers' display names and ids, so it is gitignored: keep it local. |
 | `--replay <file.jsonl>` | server | Feeds a recorded `.jsonl` back through the exact handler live mode uses. This is how the live code path gets tested without being live. Pair with `--dry` and it needs no server, though it still needs `MC_PLAYER`, since the commands it builds name the player. |
 | `--verify` | server | Syntax-checks every command in the map against your actual server version and runs none of them. Each command is wrapped in a selector that matches nothing, so the server parses it in full and then declines. Delayed stages are included. Exit code 1 on any failure. |
 | `--keys [catalog.json]` | nothing | Checks the map against a region's gift catalog: keys no gift produces, two gifts colliding on one key, and prices that have drifted. Offline, no server, deterministic. Warns when the catalog is more than about a month old. Exit code 1 on any failure. |
@@ -208,6 +208,51 @@ file explains why it is a paste-into-the-console snippet and not an HTTP request
 
 Either way the file is dated the moment you make it. `--keys` warns when it is more than
 about a month old.
+
+---
+
+## Free actions: follows and likes
+
+Gifts cost money. Follows and likes do not, so both are handled in `bridge.ts` rather
+than in the gift map.
+
+| Action | Effect | Guard |
+|---|---|---|
+| Follow | One golden carrot | One per account per session. |
+| Every 500 likes | One creeper, spawned at the player | One creeper per event, however many thresholds it crossed. |
+
+**Neither is rate limited.** The follow guard is on identity, not on rate: the same
+account cannot re-follow for repeat carrots, but a raid of 200 distinct accounts is 200
+carrots, because each of those is a different person following for the first time. The
+only backstop is the command queue's own backlog cap, which drops commands rather than
+letting the show fall minutes behind.
+
+For likes, the threshold IS the governor, which is why it is 500 and not 100. A busy room
+satisfies 100 likes continuously, so at that number a creeper would land as often as
+anything let it, and a creeper is the only effect in the map that permanently changes the
+terrain. Blindness wears off and gear can be re-got; holes in the floor accumulate for the
+whole stream. At 500 a milestone is an event that happens a few times an hour.
+
+Likes need more care than follows in two other ways.
+
+**Likes arrive in batches.** One event on the wire routinely carries ten or more likes,
+so counting events counts nothing useful. The payload carries both the likes in that
+event and the room's running total for the stream, and the bridge counts boundaries in
+the running total. That is what makes it survive a reconnect: a locally summed counter
+would reset, and a viewer who tapped ninety times would have to earn them again.
+
+**One event can cross several thresholds.** A payload carrying 1,500 likes crosses three
+five-hundred-marks at once. That fires **one** creeper, not three. Three creepers at the same
+time is not three times the effect, it is a guaranteed death and a crater, in exchange
+for an action nobody paid for. The console still prints how many boundaries went by.
+
+Starting the bridge into a room that is already at 5,000 likes does not owe ten creepers:
+the first event credits only the likes it carried and adopts the rest as the baseline.
+
+To change the threshold, edit `LIKES_PER_CREEPER` in `bridge.ts`. It is the only place
+the number is written down. To change what a milestone does, edit `likeCreeperCommands()`
+next to it; `--verify` checks whatever is
+in there along with every gift.
 
 ---
 
