@@ -526,7 +526,7 @@ export function decideLike(
 export function likeCreeperCommands(milestone: number): string[] {
   return [
     banner(`${milestone} LIKES: CREEPER`, 'yellow'),
-    at('summon creeper ~2 ~ ~2'),
+    at('summon creeper ~ ~ ~ {fuse:30}'),
   ];
 }
 
