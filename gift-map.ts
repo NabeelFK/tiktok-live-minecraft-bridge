@@ -268,22 +268,30 @@ export const GIFTS: Record<string, Action> = {
   ],
 
   // HELP 3 of 4. THE IRON KIT. Full iron armour, sword and pickaxe.
-  // The "finally, one nice thing" gift, and the answer to the wipes in the band below.
+  // HELP 3 of 4. THE DIAMOND KIT. The lower rung of a two-tier ladder: this and
+  // `swan` are deliberately THE SAME GIFT in different metal, so a viewer who has seen
+  // one can read the other without being told. Armour, sword, pickaxe, totems, golden
+  // apples, logs - same list, same order, better numbers at 699.
   //
   // Key history: `dancingflower` (199) was never a CA gift. `lovecall` (299) was, and
   // has since been retired. Now Cello Romance, also 299, confirmed in a live panel.
-  // Effect and price unchanged from the gift it replaces.
   //
   // It sits level with `corgi` (299) rather than just above the 99-199 wipe band it
   // answers, and it is still the cheapest gear-restoring HELP in the map.
+  //
+  // Totems do not stack, so `totem_of_undying 3` is three inventory slots, not one.
+  // Ten commands; give past a full inventory drops at the player's feet, never voids.
   celloromance: () => [
-    banner('IRON KIT', 'aqua'),
-    `give ${MC_PLAYER} iron_helmet 1`,
-    `give ${MC_PLAYER} iron_chestplate 1`,
-    `give ${MC_PLAYER} iron_leggings 1`,
-    `give ${MC_PLAYER} iron_boots 1`,
-    `give ${MC_PLAYER} iron_sword 1`,
-    `give ${MC_PLAYER} iron_pickaxe 1`,
+    banner('DIAMOND KIT', 'aqua'),
+    `give ${MC_PLAYER} diamond_helmet 1`,
+    `give ${MC_PLAYER} diamond_chestplate 1`,
+    `give ${MC_PLAYER} diamond_leggings 1`,
+    `give ${MC_PLAYER} diamond_boots 1`,
+    `give ${MC_PLAYER} diamond_sword 1`,
+    `give ${MC_PLAYER} diamond_pickaxe 1`,
+    `give ${MC_PLAYER} totem_of_undying 3`,
+    `give ${MC_PLAYER} golden_apple 32`,
+    `give ${MC_PLAYER} oak_log 64`,
   ],
 
   // INVENTORY WIPED. Everything. `clear <player>` with no item argument empties
@@ -295,12 +303,31 @@ export const GIFTS: Record<string, Action> = {
   ],
 
 
-  // HELP 4 of 4. THE DRAGON KIT. Eight beds is the actual meta for killing the
-  // dragon, and the totem turns a death into a survival on camera.
+  // HELP 4 of 4. THE NETHERITE KIT. The upper rung of the ladder `celloromance` starts:
+  // identical list, one metal up, bigger counts. That repetition is the point - viewers
+  // learn "the expensive one is the better version of the thing I already know".
+  //
+  // The eight white beds are the exception to the symmetry and they stay on purpose:
+  // bed-bombing is the actual meta for killing the ender dragon, so this is the only
+  // gift in the map tied to FINISHING the game rather than surviving it.
+  //
+  // Netherite given directly needs no upgrade template; that requirement belongs to the
+  // crafting recipe, not the item. Everything arrives unenchanted.
+  //
+  // Neither totems nor beds stack, so this is 6 gear + 5 totem slots + 8 bed slots +
+  // 2 stacks = 21 inventory slots out of 36. Eleven commands.
   swan: () => [
-    banner('DRAGON KIT', 'aqua'),
-    `give ${MC_PLAYER} white_bed 7`,
-    `give ${MC_PLAYER} totem_of_undying 2`,
+    banner('NETHERITE KIT', 'aqua'),
+    `give ${MC_PLAYER} netherite_helmet 1`,
+    `give ${MC_PLAYER} netherite_chestplate 1`,
+    `give ${MC_PLAYER} netherite_leggings 1`,
+    `give ${MC_PLAYER} netherite_boots 1`,
+    `give ${MC_PLAYER} netherite_sword 1`,
+    `give ${MC_PLAYER} netherite_pickaxe 1`,
+    `give ${MC_PLAYER} totem_of_undying 5`,
+    `give ${MC_PLAYER} golden_apple 64`,
+    `give ${MC_PLAYER} oak_log 64`,
+    `give ${MC_PLAYER} white_bed 8`,
   ],
 
   // ═══════════════ 899+ COINS: RUN THREAT. Costs potentially everything. ═══════════════

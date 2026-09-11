@@ -4,15 +4,29 @@
   Add it as a Link source pointing at this file, or serve the folder and use the
   local URL. Background is transparent, so it composites straight over the game.
 
+  Three cards at a time, rotating as a PAGE. Every gift in the map is listed, so the
+  whole ladder is on screen over a cycle rather than a curated ten. Paging is what
+  makes that affordable: 22 gifts one at a time is a 99 second cycle and nobody sees
+  the gift they are looking for; eight pages of three is about 36 seconds.
+
   EDIT THE GIFTS ARRAY BELOW. Each entry needs:
     name    the gift's exact name as it appears in the TikTok panel
-    coins   its cost. Not shown on the card - kept so you can sort the list
-            by price and so it is easy to turn back on later.
+    coins   its cost. Not drawn on the card - kept so the list can be sorted by price
+            and so it is easy to turn back on later.
     icon    the gift's icon URL from TikTok's CDN (see note under the array)
-    effect  the banner name your bridge prints, e.g. WEBBED
-    blurb   one short line, first person, on what actually happens.
+    effect  the banner name your bridge prints, e.g. WEBBED. Copy it out of
+            gift-map.ts exactly, or the overlay and the chat will disagree.
+    blurb   one short line, first person, on what actually happens. It gets its
+            own line under the gift name and wraps to a second if it has to; the
+            card reserves the height either way, so a page never changes size.
+            Past about 80 characters it gets clamped and the console says so.
             Keep it accurate - viewers notice when it lies.
-    kind    'harm' or 'help' - this drives the colour, so get it right
+    kind    'harm' or 'help' - this drives the spine colour, the effect colour and
+            the verdict chip, so getting it wrong tells viewers the opposite of
+            the truth.
+
+  The list is in PRICE ORDER and PAGE_SIZES cuts it into pages, so each page is a
+  price neighbourhood. Reorder the array to regroup the pages.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -28,11 +42,20 @@
     --slate-lift: #262932;
     --harm:       #e03131;
     --help:       #37b24d;
-    --coin:       #ffc61a;
     --text:       #f2f3f5;
     --text-dim:   #9aa0ab;
 
-    --card-w: 400px;
+    /* Set by the longest effect name. INVENTORY WIPED is 306px at 25px Silkscreen
+       and the icon, gaps, padding and verdict chip take 182px, so anything under
+       488px cuts it off. The script warns in the console if a future effect name
+       overflows, rather than quietly ellipsing it. */
+    --card-w: 492px;
+    /* Fixed, so a card whose blurb wraps to two lines does not make its page
+       taller than a page where none do. Sized for effect + gift name + a
+       TWO line blurb. Nothing currently wraps (longest blurb is 36 characters),
+       so about 18px of this is reserved headroom on every card. Drop it to 94px
+       for a tighter page that resizes the day a blurb does wrap. */
+    --card-h: 112px;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -44,7 +67,7 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Anchor the card. Change to top/right etc. to move it. */
+  /* Anchor the stack. Change to flex-start/flex-end etc. to move it. */
   body {
     display: flex;
     align-items: flex-end;
@@ -53,102 +76,116 @@
     padding: 24px;
   }
 
-  .card {
+  .page {
     width: var(--card-w);
-    background: var(--slate);
-    border: 3px solid var(--harm);
-    border-radius: 2px;
-    box-shadow: 0 0 0 3px rgba(0,0,0,.55), 0 10px 30px rgba(0,0,0,.45);
-    overflow: hidden;
-    transition: border-color .25s;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    filter: drop-shadow(0 10px 24px rgba(0,0,0,.5));
   }
-  .card[data-kind="help"] { border-color: var(--help); }
 
-  .row {
+  /* One card per gift. Horizontal, because three stacked verticals do not fit a
+     phone crop: icon, then the effect name, then the verdict, left to right. */
+  .card {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 16px 18px;
+    gap: 14px;
+    height: var(--card-h);
+    padding: 12px 14px;
+    background: var(--slate);
+    border-left: 8px solid var(--harm);
+    box-shadow: 0 0 0 2px rgba(0,0,0,.5);
   }
+  .card[data-kind="help"] { border-left-color: var(--help); }
 
   .icon {
-    width: 68px;
-    height: 68px;
-    flex: 0 0 68px;
+    width: 52px;
+    height: 52px;
+    flex: 0 0 52px;
     object-fit: contain;
-    image-rendering: auto;
-    filter: drop-shadow(0 2px 6px rgba(0,0,0,.5));
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,.5));
   }
   /* Shown only when the icon URL is missing or fails to load. */
   .icon-fallback {
-    width: 68px; height: 68px; flex: 0 0 68px;
-    display: none;
-    align-items: center; justify-content: center;
+    width: 52px; height: 52px; flex: 0 0 52px;
+    display: flex; align-items: center; justify-content: center;
     background: var(--slate-lift);
     color: var(--text-dim);
     font-family: Silkscreen, monospace;
-    font-size: 11px;
+    font-size: 10px;
     text-align: center;
-    line-height: 1.3;
-    padding: 6px;
+    line-height: 1.2;
   }
 
-  .meta { min-width: 0; flex: 1; }
+  .meta { flex: 1; min-width: 0; }
 
-  .giftline {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    margin-bottom: 6px;
+  .effect {
+    font-family: Silkscreen, monospace;
+    font-size: 25px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--harm);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
+  .card[data-kind="help"] .effect { color: var(--help); }
+
+  /* Gift name and blurb on their own lines. They used to share one, which put a
+     19 character name plus a 34 character blurb through 294px of space and cut
+     the blurb off with an ellipsis. Split, neither has to be cut: the longest
+     name is 19 characters and the longest blurb 36, and each clears the width
+     on its own. */
   .giftname {
-    font-size: 19px;
+    margin-top: 4px;
+    font-size: 13px;
+    line-height: 1.25;
     font-weight: 600;
     color: var(--text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .effect {
-    font-family: Silkscreen, monospace;
-    font-size: 26px;
-    font-weight: 700;
-    line-height: 1.05;
-    color: var(--harm);
-    margin-bottom: 4px;
-    word-break: break-word;
-  }
-  .card[data-kind="help"] .effect { color: var(--help); }
 
+  /* Wraps instead of truncating. Clamped at two lines so an over-long blurb
+     cannot push the verdict chip or the next card out of the crop. */
   .blurb {
-    font-size: 14px;
-    color: var(--text-dim);
+    margin-top: 2px;
+    font-size: 13px;
     line-height: 1.35;
+    color: var(--text-dim);
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
   }
 
-  /* Verdict strip: the fastest read on the whole card. */
+  /* The verdict. Solid fill and one word, so it survives a phone-sized crop even
+     when the blurb does not. Third redundant signal after the spine and the
+     effect colour, which is the point: nobody should have to read to tell them apart. */
   .verdict {
+    flex: 0 0 auto;
     font-family: Silkscreen, monospace;
     font-size: 12px;
-    letter-spacing: .06em;
-    padding: 7px 18px;
+    letter-spacing: .04em;
+    padding: 6px 10px;
     background: var(--harm);
     color: #12130f;
   }
   .card[data-kind="help"] .verdict { background: var(--help); }
 
+  /* One bar for the page, not one per card. */
   .timer {
     height: 3px;
-    background: rgba(255,255,255,.12);
+    background: rgba(0,0,0,.55);
   }
   .timer span {
     display: block;
     height: 100%;
     width: 100%;
-    background: var(--harm);
+    background: var(--text-dim);
     transform-origin: left;
   }
-  .card[data-kind="help"] .timer span { background: var(--help); }
 
   .swap { animation: swap .3s ease-out; }
   @keyframes swap {
@@ -164,19 +201,8 @@
 </head>
 <body>
 
-<div class="card" id="card" data-kind="harm">
-  <div class="row">
-    <img class="icon" id="icon" alt="">
-    <div class="icon-fallback" id="iconFallback">NO<br>ICON</div>
-    <div class="meta">
-      <div class="giftline">
-        <span class="giftname" id="giftname">Rose</span>
-      </div>
-      <div class="effect" id="effect">TNT</div>
-      <div class="blurb" id="blurb">One stick of TNT drops on me</div>
-    </div>
-  </div>
-  <div class="verdict" id="verdict">SEND THIS TO MAKE MY RUN HARDER</div>
+<div class="page" id="page">
+  <div class="cards" id="cards"></div>
   <div class="timer"><span id="bar"></span></div>
 </div>
 
@@ -189,81 +215,171 @@
 // Extend --catalog to save the icon URL per gift, then paste them in below.
 // A missing or broken URL shows a placeholder rather than an empty gap.
 //
-// Keep this list short. Ten entries is about the limit for a vertical crop;
-// past that nobody reads it and everyone defaults to roses. Unlisted gifts
-// still work through the coin-tier fallback, they just are not advertised.
+// This list is every key in gift-map.ts, in price order. Unlisted gifts still
+// fire through the coin-tier fallback, they are just not advertised.
 // ---------------------------------------------------------------------------
 
-const ROTATE_MS = 4500;
+const ROTATE_MS = 4500;   // per PAGE. 8 pages x 4.5s is a 36 second cycle.
 
 const GIFTS = [
-  { name: 'Rose',        coins: 1,    icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp', effect: 'TNT',        blurb: 'One stick of TNT drops on me',       kind: 'harm' },
-  { name: 'GG',          coins: 1,    icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/3f02fa9594bd1495ff4e8aa5ae265eef~tplv-obj.webp', effect: 'WEBBED',     blurb: 'One cobweb on me. Spam it to bury me.', kind: 'harm' },
-  { name: 'Heart Me',    coins: 1,    icon: 'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/composed.b326356a360b67b367c5cae58fe337b1.png~tplv-obj.webp', effect: 'GOLDEN APPLE', blurb: 'One golden apple into my inventory', kind: 'help' },
-  { name: 'Perfume',     coins: 20,   icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/20b8f61246c7b6032777bb81bf4ee055~tplv-obj.webp', effect: 'FLOAT',      blurb: 'I float up for 20s, then fall',      kind: 'harm' },
-  { name: 'Flowers',     coins: 100,  icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/697bf9450c55c2ee569c8e8b2cab7152~tplv-obj.webp', effect: 'SECOND WIND', blurb: 'Regeneration IV on me for 60s',     kind: 'help' },
-  { name: 'Hand Heart',  coins: 100,  icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/6cd022271dc4669d182cad856384870f~tplv-obj.webp', effect: 'BURIED',     blurb: 'I drop 12 blocks, sealed in above',  kind: 'harm' },
-  { name: 'Balloons',    coins: 200,  icon: 'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/c370d5c4ab6e5971b6b17de3eab6f6d4.png~tplv-obj.webp', effect: 'FLOOR GONE', blurb: 'The floor under me disappears',      kind: 'harm' },
-  { name: 'Cello Romance', coins: 299, icon: 'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/4756a2a4604d2cb5bb5b0639b259e9b5.png~tplv-obj.webp', effect: 'IRON KIT',  blurb: 'Full iron armour, sword and pickaxe', kind: 'help' },
-  { name: 'Money Gun',   coins: 500,  icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/e0589e95a2b41970f0f30f6202f5fce6~tplv-obj.webp', effect: 'INVENTORY WIPED', blurb: 'My whole inventory wiped',      kind: 'harm' },
-  { name: 'Sports Car',  coins: 7000, icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/e7ce188da898772f18aaffe49a7bd7db~tplv-obj.webp', effect: 'THE FINALE', blurb: 'Nine seconds of chaos, then 20 withers', kind: 'harm' },
+  { name: 'Rose',                coins: 1,    icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp', effect: 'TNT',             blurb: 'TNT lands on me, 3 second fuse',      kind: 'harm' },
+  { name: 'TikTok',              coins: 1,    icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/802a21ae29f9fae5abe3693de9f874bd~tplv-obj.webp', effect: 'STRIKE',          blurb: 'Lightning hits me where I stand',     kind: 'harm' },
+  { name: 'GG',                  coins: 1,    icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/3f02fa9594bd1495ff4e8aa5ae265eef~tplv-obj.webp', effect: 'WEBBED',          blurb: 'A cobweb on me. Spam it to bury me',  kind: 'harm' },
+  { name: 'Ice Cream Cone',      coins: 1,    icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/968820bc85e274713c795a6aef3f7c67~tplv-obj.webp', effect: 'WOOZY',           blurb: '15 seconds of nausea',                kind: 'harm' },
+  { name: 'Heart Me',            coins: 1,    icon: 'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/composed.b326356a360b67b367c5cae58fe337b1.png~tplv-obj.webp', effect: 'GOLDEN APPLE',    blurb: 'One golden apple, straight to me',    kind: 'help' },
+  { name: 'Finger Heart',        coins: 5,    icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/a4c4dc437fd3a6632aba149769491f49.png~tplv-obj.webp', effect: 'SLUDGE',          blurb: 'Mining fatigue and slowness, 20s',    kind: 'harm' },
+  { name: 'Friendship Necklace', coins: 10,   icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/e033c3f28632e233bebac1668ff66a2f.png~tplv-obj.webp', effect: 'LAUNCHED',        blurb: 'Flung into the air, no fall damage',  kind: 'harm' },
+  { name: 'Perfume',             coins: 20,   icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/20b8f61246c7b6032777bb81bf4ee055~tplv-obj.webp', effect: 'FLOAT',           blurb: 'I float up for 20s, then drop',       kind: 'harm' },
+  { name: 'Doughnut',            coins: 30,   icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/4e7ad6bdf0a1d860c538f38026d4e812~tplv-obj.webp', effect: 'BLACKOUT',        blurb: 'Blind 10s while six mobs land',       kind: 'harm' },
+  { name: 'Paper Crane',         coins: 99,   icon: 'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/0f158a08f7886189cdabf496e8a07c21~tplv-obj.webp', effect: 'UPROOTED',        blurb: 'Thrown 60 to 120 blocks off course',  kind: 'harm' },
+  { name: 'Hat and Mustache',    coins: 99,   icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/2f1e4f3f5c728ffbfa35705b480fdc92~tplv-obj.webp', effect: 'HOTBAR WIPED',    blurb: 'All nine hotbar slots emptied',       kind: 'harm' },
+  { name: 'Hand Heart',          coins: 100,  icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/6cd022271dc4669d182cad856384870f~tplv-obj.webp', effect: 'BURIED',          blurb: 'I fall 12 blocks, sealed in above',   kind: 'harm' },
+  { name: 'Flowers',             coins: 100,  icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/697bf9450c55c2ee569c8e8b2cab7152~tplv-obj.webp', effect: 'SECOND WIND',     blurb: 'Regeneration IV on me for 60s',       kind: 'help' },
+  { name: 'Love You',            coins: 199,  icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/134e51c00f46e01976399883ca4e4798~tplv-obj.webp', effect: 'GEAR GONE',       blurb: 'Every tool and every piece of armour', kind: 'harm' },
+  { name: 'Balloons',            coins: 200,  icon: 'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/c370d5c4ab6e5971b6b17de3eab6f6d4.png~tplv-obj.webp', effect: 'FLOOR GONE',      blurb: 'The floor under me disappears',       kind: 'harm' },
+  { name: 'Corgi',               coins: 299,  icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/148eef0884fdb12058d1c6897d1e02b9~tplv-obj.webp', effect: 'RELOCATED',       blurb: 'Dumped 150 to 400 blocks away',       kind: 'harm' },
+  { name: 'Cello Romance',       coins: 299,  icon: 'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/4756a2a4604d2cb5bb5b0639b259e9b5.png~tplv-obj.webp', effect: 'DIAMOND KIT',     blurb: 'Diamond kit, 3 totems, 32 gapples',   kind: 'help' },
+  { name: 'Money Gun',           coins: 500,  icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/e0589e95a2b41970f0f30f6202f5fce6~tplv-obj.webp', effect: 'INVENTORY WIPED', blurb: 'My whole inventory, gone',            kind: 'harm' },
+  { name: 'Swan',                coins: 699,  icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/97a26919dbf6afe262c97e22a83f4bf1~tplv-obj.webp', effect: 'NETHERITE KIT',   blurb: 'Netherite kit, 5 totems, 8 beds',     kind: 'help' },
+  { name: 'Train',               coins: 899,  icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/4227ed71f2c494b554f9cbe2147d4899~tplv-obj.webp', effect: 'SKY DIVE',        blurb: '120 blocks straight up, then down',   kind: 'harm' },
+  { name: 'Galaxy',              coins: 1000, icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/79a02148079526539f7599150da9fd28.png~tplv-obj.webp', effect: 'WARDEN',          blurb: 'A warden spawns and I go blind',      kind: 'harm' },
+  { name: 'Sports Car',          coins: 7000, icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/e7ce188da898772f18aaffe49a7bd7db~tplv-obj.webp', effect: 'THE FINALE',      blurb: 'Nine seconds of chaos, 20 withers',   kind: 'harm' },
 ];
 
-const VERDICT = {
-  harm: 'SEND THIS TO MAKE MY RUN HARDER',
-  help: 'SEND THIS TO HELP MY RUN',
-};
+// How the list is cut into pages. Each page is a price neighbourhood, so the
+// rotation walks the ladder from 1 coin to 7,000 and viewers can learn "dearer
+// does more" without anyone explaining it.
+//
+// Sizes are explicit rather than a fixed chunk of 3 because 22 does not divide by
+// 3: a plain chunker leaves the last page with a single card. These sizes put the
+// two biggest gifts together on a final page of two instead.
+const PAGE_SIZES = [3, 3, 3, 3, 3, 3, 2, 2];
+
+const VERDICT = { harm: 'HURTS', help: 'HELPS' };
+
+// The blurb line is about 45 characters wide and the card reserves two of them.
+// Past this the clamp cuts the blurb off mid word, which is exactly the bug that
+// made it wrap in the first place, so say so rather than doing it quietly.
+// Nothing in the list is close today: the longest blurb is 36 characters.
+const BLURB_BUDGET = 80;
+for (const g of GIFTS) {
+  if (g.blurb.length > BLURB_BUDGET) {
+    console.warn(
+      `[overlay] "${g.name}" has a ${g.blurb.length} character blurb. Over about ` +
+      `${BLURB_BUDGET} it gets clamped on the card. Shorten it.`,
+    );
+  }
+}
 
 // ---------------------------------------------------------------------------
 
 const el = {
-  card:     document.getElementById('card'),
-  icon:     document.getElementById('icon'),
-  fallback: document.getElementById('iconFallback'),
-  giftname: document.getElementById('giftname'),
-  effect:   document.getElementById('effect'),
-  blurb:    document.getElementById('blurb'),
-  verdict:  document.getElementById('verdict'),
-  bar:      document.getElementById('bar'),
+  page:  document.getElementById('page'),
+  cards: document.getElementById('cards'),
+  bar:   document.getElementById('bar'),
 };
 
-// Alternate harm and help so both are always in rotation, rather than a run of
-// eight punishments followed by two rewards.
-function interleave(list) {
-  const harm = list.filter(g => g.kind === 'harm');
-  const help = list.filter(g => g.kind === 'help');
-  const out = [];
-  const ratio = help.length ? Math.max(1, Math.round(harm.length / help.length)) : Infinity;
-  let h = 0, p = 0;
-  while (h < harm.length || p < help.length) {
-    for (let i = 0; i < ratio && h < harm.length; i++) out.push(harm[h++]);
-    if (p < help.length) out.push(help[p++]);
+/**
+ * Cut the list into pages using PAGE_SIZES, falling back to fixed pages of three
+ * if the sizes have drifted out of step with the list. Falling back silently is
+ * how a page of gifts goes missing without anyone noticing, so it says so.
+ */
+function paginate(list, sizes) {
+  const planned = sizes.reduce((a, b) => a + b, 0);
+  if (planned !== list.length) {
+    console.warn(
+      `[overlay] PAGE_SIZES adds up to ${planned} but there are ${list.length} gifts. ` +
+      'Falling back to pages of three. Fix PAGE_SIZES to group them deliberately.',
+    );
+    sizes = Array.from({ length: Math.ceil(list.length / 3) }, () => 3);
   }
-  return out;
+  const pages = [];
+  let i = 0;
+  for (const size of sizes) {
+    const page = list.slice(i, i + size);
+    if (page.length) pages.push(page);
+    i += size;
+  }
+  return pages;
 }
 
-const ORDER = interleave(GIFTS);
-let i = 0;
+const PAGES = paginate(GIFTS, PAGE_SIZES);
 
-function show(gift) {
-  el.card.dataset.kind = gift.kind;
-  el.giftname.textContent = gift.name;
-  el.effect.textContent = gift.effect;
-  el.blurb.textContent = gift.blurb;
-  el.verdict.textContent = VERDICT[gift.kind];
+function cardFor(gift) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.dataset.kind = gift.kind;
 
   if (gift.icon) {
-    el.icon.src = gift.icon;
-    el.icon.style.display = '';
-    el.fallback.style.display = 'none';
+    const img = document.createElement('img');
+    img.className = 'icon';
+    img.alt = '';
+    img.src = gift.icon;
+    img.addEventListener('error', () => img.replaceWith(fallbackIcon()));
+    card.append(img);
   } else {
-    el.icon.style.display = 'none';
-    el.fallback.style.display = 'flex';
+    card.append(fallbackIcon());
   }
 
-  el.card.classList.remove('swap');
-  void el.card.offsetWidth;
-  el.card.classList.add('swap');
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+
+  const effect = document.createElement('div');
+  effect.className = 'effect';
+  effect.textContent = gift.effect;
+  effect.dataset.gift = gift.name;
+
+  // textContent throughout: gift names carry apostrophes and the odd curly quote.
+  const name = document.createElement('div');
+  name.className = 'giftname';
+  name.textContent = gift.name;
+
+  const blurb = document.createElement('div');
+  blurb.className = 'blurb';
+  blurb.textContent = gift.blurb;
+
+  meta.append(effect, name, blurb);
+
+  const verdict = document.createElement('div');
+  verdict.className = 'verdict';
+  verdict.textContent = VERDICT[gift.kind];
+
+  card.append(meta, verdict);
+  return card;
+}
+
+function fallbackIcon() {
+  const box = document.createElement('div');
+  box.className = 'icon-fallback';
+  box.textContent = 'NO ICON';
+  return box;
+}
+
+// Effect names are one line and get ellipsed if they do not fit, which is silent
+// and looks deliberate. Measured once per gift as it first appears, because only
+// the browser knows how wide Silkscreen actually renders.
+const widthChecked = new Set();
+function checkEffectWidths() {
+  for (const e of el.cards.querySelectorAll('.effect')) {
+    const name = e.dataset.gift;
+    if (widthChecked.has(name)) continue;
+    widthChecked.add(name);
+    if (e.scrollWidth > e.clientWidth + 1) {
+      console.warn(
+        `[overlay] "${e.textContent}" (${name}) is ${e.scrollWidth}px wide but only ` +
+        `${e.clientWidth}px fits, so it is being cut off. Raise --card-w or shorten the banner.`,
+      );
+    }
+  }
+}
+
+function show(page) {
+  el.cards.replaceChildren(...page.map(cardFor));
+  checkEffectWidths();
+
+  el.page.classList.remove('swap');
+  void el.page.offsetWidth;
+  el.page.classList.add('swap');
 
   el.bar.style.transition = 'none';
   el.bar.style.transform = 'scaleX(1)';
@@ -272,15 +388,11 @@ function show(gift) {
   el.bar.style.transform = 'scaleX(0)';
 }
 
-el.icon.addEventListener('error', () => {
-  el.icon.style.display = 'none';
-  el.fallback.style.display = 'flex';
-});
-
-show(ORDER[0]);
+let i = 0;
+show(PAGES[0]);
 setInterval(() => {
-  i = (i + 1) % ORDER.length;
-  show(ORDER[i]);
+  i = (i + 1) % PAGES.length;
+  show(PAGES[i]);
 }, ROTATE_MS);
 </script>
 </body>
