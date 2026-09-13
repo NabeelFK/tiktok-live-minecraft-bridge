@@ -445,7 +445,7 @@ function handleFollow(data: any, tag = 'follow') {
 // times an hour. It matters more here than for any other effect because a creeper is the
 // only thing in the map that permanently changes the terrain: blindness wears off and
 // gear can be re-got, but holes in the floor accumulate for the whole stream.
-export const LIKES_PER_CREEPER = 500;
+export const LIKES_PER_CREEPER = 100;
 
 /**
  * How many `step` boundaries lie between two running totals.
@@ -467,7 +467,7 @@ export type LikeDecision = {
   counted: number;
   /** false when the payload had no usable .total and the count had to be summed locally */
   usedTotal: boolean;
-  /** boundaries this one event crossed. Can be >1; it still buys one creeper. */
+  /** boundaries this one event crossed; each boundary buys one creeper. */
   crossed: number;
   /** the highest boundary reached, for the banner */
   milestone: number;
@@ -479,10 +479,8 @@ export type LikeDecision = {
  * which is why this takes `unknown` and coerces rather than trusting the caller.
  * `total` arrives as a STRING off the wire (int64 in the proto).
  *
- * ONE creeper per event, however many thresholds that event crossed. A single payload
- * carrying 300 likes crosses three boundaries, and three creepers at once is not three
- * times the punishment - it is a guaranteed death and a crater, for an action nobody
- * paid for. `crossed` is still reported so the console can say what really happened.
+ * One creeper per threshold crossed. TikTok batches likes, so a single payload can cross
+ * several boundaries and each one must still be honored.
  */
 export function decideLike(
   prev: number | null,
@@ -523,11 +521,19 @@ export function decideLike(
  * commands too, and a second copy of the literal is exactly how a verified command
  * and a fired command drift apart.
  */
-export function likeCreeperCommands(milestone: number): string[] {
-  return [
-    banner(`${milestone} LIKES: CREEPER`, 'yellow'),
-    at('summon creeper ~ ~ ~ {fuse:30}'),
-  ];
+export function likeCreeperCommands(
+  milestone: number,
+  crossed = 1,
+  step = LIKES_PER_CREEPER,
+): string[] {
+  const commands: string[] = [];
+  for (let i = Math.max(1, Math.trunc(crossed)) - 1; i >= 0; i--) {
+    commands.push(
+      banner(`${milestone - i * step} LIKES: CREEPER`, 'yellow'),
+      at('summon creeper ~ ~ ~ {fuse:30}'),
+    );
+  }
+  return commands;
 }
 
 let likeTotal: number | null = null;
@@ -554,9 +560,9 @@ function handleLike(data: any, tag = 'like') {
   }
   if (d.kind !== 'creeper') return;
 
-  const extra = d.crossed > 1 ? ` (${d.crossed} thresholds in one event, one creeper)` : '';
+  const extra = d.crossed > 1 ? ` (${d.crossed} thresholds in one event, ${d.crossed} creepers)` : '';
   console.log(`[${tag}] ${name} +${d.counted} -> ${d.total} likes, ${d.milestone} milestone${extra}`);
-  enqueue(likeCreeperCommands(d.milestone));
+  enqueue(likeCreeperCommands(d.milestone, d.crossed));
 }
 
 // ---------- shared gift handler ----------

@@ -458,14 +458,25 @@ test('decideLike() credits only the likes the first event carried', () => {
   assert.equal(straddles.milestone, 5000);
 });
 
-test('decideLike() gives ONE creeper for a burst that crosses several thresholds', () => {
+test('decideLike() preserves every threshold in a multi-threshold burst', () => {
   const d = decideLike(90, 250, '340', 100);
-  assert.equal(d.kind, 'creeper', 'one decision, not three');
-  assert.equal(d.crossed, 3, 'but it reports that three boundaries went by');
+  assert.equal(d.kind, 'creeper');
+  assert.equal(d.crossed, 3);
   assert.equal(d.milestone, 300, 'and the banner names the highest one reached');
-  // The handler enqueues one body per 'creeper' decision, so crossed does not multiply
-  // the punishment. Three creepers at once is a death and a crater, for a free action.
-  assert.equal(likeCreeperCommands(d.milestone).filter((c) => c.includes('summon creeper')).length, 1);
+  const cmds = likeCreeperCommands(d.milestone, d.crossed, 100);
+  assert.equal(cmds.filter((c) => c.includes('summon creeper')).length, 3);
+  assert.deepEqual(cmds.filter((c) => c.includes('title')).map((cmd) => bannerOf([cmd])), [
+    '100 LIKES: CREEPER',
+    '200 LIKES: CREEPER',
+    '300 LIKES: CREEPER',
+  ]);
+});
+
+test('a single 900-like event spawns nine creepers', () => {
+  const d = decideLike(null, 900, '900', 100);
+  const cmds = likeCreeperCommands(d.milestone, d.crossed, 100);
+  assert.equal(d.crossed, 9);
+  assert.equal(cmds.filter((c) => c.includes('summon creeper')).length, 9);
 });
 
 test('decideLike() re-seeds rather than firing when the total goes backwards', () => {
