@@ -30,6 +30,7 @@ import {
   normalizeCatalogGifts,
   pendingStageSummary,
   resolve,
+  resolveGiftBatch,
   sanitize,
   scheduleStage,
 } from './bridge';
@@ -111,6 +112,13 @@ test('resolve() scales a streak on the gifts that can be repeated', () => {
   // Repetition only multiplies commands that CREATE something. summon does.
   assert.equal(resolve('Rose', 12, 1).length, 13, 'banner plus twelve summons');
   assert.equal(resolve('Rose', 1, 1).length, 2);
+});
+
+test('resolveGiftBatch() runs every gift in a completed streak', () => {
+  const cmds = resolveGiftBatch('Doughnut', 3, 30);
+  assert.equal(cmds.filter((c) => c.includes('summon zombie')).length, 12);
+  assert.equal(cmds.filter((c) => c.includes('summon skeleton')).length, 6);
+  assert.equal(cmds.filter((c) => c.includes('BLACKOUT')).length, 3);
 });
 
 test('resolve() falls back for a gift nobody mapped', () => {

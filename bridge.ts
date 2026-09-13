@@ -111,13 +111,13 @@ export function resolve(giftName: string, repeatCount: number, diamonds: number)
 function resolutionLabel(giftName: string, repeatCount: number, diamonds: number): string {
   const k = key(giftName);
   const n = Math.max(repeatCount, 1);
-  const total = diamonds * n;
+  const batch = n > 1 ? ` each x${n}` : '';
   const variants = PRICED[k];
   if (variants) {
     const hit = pickVariant(variants, diamonds);
-    return hit ? `mapped, priced >=${hit.minCoins}` : `priced miss at ${diamonds}c -> fallback ${total}c`;
+    return hit ? `mapped, priced >=${hit.minCoins}` : `priced miss at ${diamonds}c -> fallback ${diamonds}c${batch}`;
   }
-  return GIFTS[k] ? 'mapped' : `fallback ${total}c`;
+  return GIFTS[k] ? 'mapped' : `fallback ${diamonds}c${batch}`;
 }
 
 // ---------- rate-limited command queue with a self-healing RCON link ----------
@@ -588,6 +588,16 @@ const num = (v: any, fallbackTo: number) => {
 // single TNT per gift with nothing in the log to say why. Say it once, loudly.
 let namelessWarned = false;
 
+/** Expand a completed TikTok gift streak so every gift runs its mapped effect once. */
+export function resolveGiftBatch(giftName: string, repeatCount: number, diamonds: number): string[] {
+  const count = Number.isFinite(repeatCount)
+    ? Math.min(MAX_QUEUE, Math.max(1, Math.trunc(repeatCount)))
+    : 1;
+  const commands: string[] = [];
+  for (let i = 0; i < count; i++) commands.push(...resolve(giftName, 1, diamonds));
+  return commands;
+}
+
 function handleGift(data: any, tag = 'gift') {
   // v3 field paths, pinned from real --spy output.
   const name = String(data?.gift?.name ?? '');
@@ -607,7 +617,7 @@ function handleGift(data: any, tag = 'gift') {
   // ignore until repeatEnd, or one rose spam becomes thirty triggers.
   if (giftType === 1 && data?.repeatEnd !== 1) return;
 
-  const cmds = resolve(name, repeatCount, diamonds);
+  const cmds = resolveGiftBatch(name, repeatCount, diamonds);
   const safeName = sanitize(name || 'a gift');
   const mapped = resolutionLabel(name, repeatCount, diamonds);
   console.log(`[${tag}] ${sender} sent ${safeName} x${repeatCount} (${mapped}) -> ${cmds.length} commands`);
@@ -669,7 +679,7 @@ async function testMode() {
     const name = (hasCount ? parts.slice(0, -1) : parts).join(' ');
     const n = hasCount ? count : 1;
 
-    const cmds = resolve(name, n, diamonds);
+    const cmds = resolveGiftBatch(name, n, diamonds);
     const mapped = resolutionLabel(name, n, diamonds);
     console.log(`[test] ${name} x${n} (${mapped}) -> ${cmds.length} commands`);
     enqueue(cmds);
