@@ -4,10 +4,10 @@
   Add it as a Link source pointing at this file, or serve the folder and use the
   local URL. Background is transparent, so it composites straight over the game.
 
-  Three cards at a time, rotating as a PAGE. Every gift in the map is listed, so the
+  Two cards at a time, rotating as a PAGE. Every gift in the map is listed, so the
   whole ladder is on screen over a cycle rather than a curated ten. Paging is what
   makes that affordable: 22 gifts one at a time is a 99 second cycle and nobody sees
-  the gift they are looking for; eight pages of three is about 36 seconds.
+  the gift they are looking for; eleven pages of two is about 50 seconds.
 
   EDIT THE GIFTS ARRAY BELOW. Each entry needs:
     name    the gift's exact name as it appears in the TikTok panel
@@ -250,10 +250,7 @@ const GIFTS = [
 // rotation walks the ladder from 1 coin to 7,000 and viewers can learn "dearer
 // does more" without anyone explaining it.
 //
-// Sizes are explicit rather than a fixed chunk of 3 because 22 does not divide by
-// 3: a plain chunker leaves the last page with a single card. These sizes put the
-// two biggest gifts together on a final page of two instead.
-const PAGE_SIZES = [3, 3, 3, 3, 3, 3, 2, 2];
+const PAGE_SIZES = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2];
 
 const VERDICT = { harm: 'HURTS', help: 'HELPS' };
 
@@ -280,7 +277,7 @@ const el = {
 };
 
 /**
- * Cut the list into pages using PAGE_SIZES, falling back to fixed pages of three
+ * Cut the list into pages using PAGE_SIZES, falling back to fixed pages of two
  * if the sizes have drifted out of step with the list. Falling back silently is
  * how a page of gifts goes missing without anyone noticing, so it says so.
  */
@@ -289,9 +286,9 @@ function paginate(list, sizes) {
   if (planned !== list.length) {
     console.warn(
       `[overlay] PAGE_SIZES adds up to ${planned} but there are ${list.length} gifts. ` +
-      'Falling back to pages of three. Fix PAGE_SIZES to group them deliberately.',
+      'Falling back to pages of two. Fix PAGE_SIZES to group them deliberately.',
     );
-    sizes = Array.from({ length: Math.ceil(list.length / 3) }, () => 3);
+    sizes = Array.from({ length: Math.ceil(list.length / 2) }, () => 2);
   }
   const pages = [];
   let i = 0;

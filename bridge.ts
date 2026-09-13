@@ -394,8 +394,8 @@ async function dryDrainLoop() {
 // the same shape gifts use, so sanitize() applies unchanged.
 //
 // One guard, on identity rather than on rate: the same account re-following cannot
-// farm repeat carrots. There is deliberately NO per-minute cap, so a raid of 200
-// distinct accounts is 200 carrots. That is a real outcome to be aware of, not a bug:
+// farm repeat apples. There is deliberately NO per-minute cap, so a raid of 200
+// distinct accounts is 200 apples. That is a real outcome to be aware of, not a bug:
 // each one is a different person following for the first time, and the queue's own
 // backlog cap is what stops it becoming unbounded lag.
 const seenFollowers = new Set<string>();
@@ -410,8 +410,8 @@ function handleFollow(data: any, tag = 'follow') {
   }
   seenFollowers.add(id);
 
-  console.log(`[${tag}] ${name} -> golden carrot`);
-  enqueue([banner(`NEW FOLLOWER ${name}`, 'green'), `give ${MC_PLAYER} golden_carrot 1`]);
+  console.log(`[${tag}] ${name} -> golden apple`);
+  enqueue([banner(`NEW FOLLOWER ${name}`, 'green'), `give ${MC_PLAYER} golden_apple 1`]);
 }
 
 // ---------- likes ----------
@@ -1042,7 +1042,7 @@ async function verifyMode() {
     for (const v of variants)
       if (v.action) addGift(`${name}@>=${v.minCoins}`, v.action(1));
   for (const coins of [1, 5, 25, 99, 299, 700, 1000, 7000]) addGift(`fallback:${coins}c`, fallback(coins));
-  add('follow', [banner('NEW FOLLOWER tester', 'green'), `give ${MC_PLAYER} golden_carrot 1`]);
+  add('follow', [banner('NEW FOLLOWER tester', 'green'), `give ${MC_PLAYER} golden_apple 1`]);
   add('likes', likeCreeperCommands(LIKES_PER_CREEPER));
 
   const delayedDupes = delayedCollected - delayedChecked;
