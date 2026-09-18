@@ -29,6 +29,7 @@ import readline from 'node:readline';
 import fs from 'node:fs';
 import path from 'node:path';
 import { EULER_API_KEY, RCON_PASSWORD, TIKTOK_USER, envSourceHint } from './env';
+import { SingleplayerClient, SINGLEPLAYER_ENDPOINT } from './singleplayer-client';
 import { ASSUMED_COINS, GIFTS, PRICED, fallback } from './gift-map';
 import {
   MC_PLAYER,
@@ -66,6 +67,8 @@ const TT_BACKOFF_MAX = 300_000;  // sign requests are metered, so back off hard
 
 const DRY = process.argv.includes('--dry');
 const VERIFY = process.argv.includes('--verify');
+const SINGLEPLAYER = process.argv.includes('--singleplayer');
+const TRANSPORT = SINGLEPLAYER ? 'singleplayer' : 'rcon';
 
 // nicknames are user-controlled and go straight into a server command.
 // strip anything that isn't safe to interpolate. same for gift names off the wire.
@@ -122,10 +125,12 @@ function resolutionLabel(giftName: string, repeatCount: number, diamonds: number
 
 // ---------- rate-limited command queue with a self-healing RCON link ----------
 
-type Job = { cmd: string; expiresAt: number; attempts: number };
+type Job = { id: string; cmd: string; expiresAt: number; attempts: number };
 
 const queue: Job[] = [];
+let nextJobId = 0;
 let rcon: Rcon | null = null;
+const singleplayer = new SingleplayerClient();
 let linkState: 'down' | 'connecting' | 'up' = 'down';
 let rconAttempt = 0;
 let retryScheduled = false;
@@ -172,7 +177,12 @@ function enqueue(cmds: string[]) {
       }
       return;
     }
-    queue.push({ cmd, expiresAt, attempts: 0 });
+    queue.push({
+      id: `${process.pid}-${Date.now().toString(36)}-${(++nextJobId).toString(36)}`,
+      cmd,
+      expiresAt,
+      attempts: 0,
+    });
   }
   dropWarned = false;
 }
@@ -283,7 +293,7 @@ function markDown(reason: string, instance?: Rcon | null) {
   if (shuttingDown) return;
   if (instance && instance !== rcon) return;   // stale event from a link we already replaced
   if (linkState === 'down' || linkState === 'connecting') return;
-  console.warn(`[rcon] link lost (${reason}), reconnecting`);
+  console.warn(`[${TRANSPORT}] link lost (${reason}), reconnecting`);
   const dead = rcon;
   rcon = null;
   linkState = 'down';
@@ -297,13 +307,29 @@ function scheduleRconRetry() {
   if (retryScheduled || shuttingDown) return;
   retryScheduled = true;
   const wait = backoff(rconAttempt++, RCON_BACKOFF_MIN, RCON_BACKOFF_MAX);
-  console.warn(`[rcon] retrying in ${Math.round(wait / 1000)}s`);
+  console.warn(`[${TRANSPORT}] retrying in ${Math.round(wait / 1000)}s`);
   setTimeout(() => { retryScheduled = false; void openRcon(); }, wait);
 }
 
 async function openRcon(): Promise<boolean> {
   if (shuttingDown || linkState !== 'down') return linkState === 'up';
   linkState = 'connecting';
+
+  if (SINGLEPLAYER) {
+    try {
+      await singleplayer.connect();
+      linkState = 'up';
+      rconAttempt = 0;
+      console.log(`[singleplayer] connected to the private world at ${SINGLEPLAYER_ENDPOINT}`);
+      return true;
+    } catch (err) {
+      linkState = 'down';
+      console.warn(`[singleplayer] connect failed: ${(err as Error).message}`);
+      scheduleRconRetry();
+      return false;
+    }
+  }
+
   const next = new Rcon(RCON);
   // rcon-client emits 'error' on its own emitter. With no listener attached, node
   // rethrows it and kills the process. This listener is what keeps a Paper restart
@@ -339,14 +365,14 @@ async function drainLoop() {
     while (queue.length && queue[0].expiresAt <= now) { queue.shift(); stats.expired++; }
 
     if (linkState === 'down') { if (!retryScheduled) void openRcon(); continue; }
-    if (linkState !== 'up' || !rcon) continue;
+    if (linkState !== 'up' || (!SINGLEPLAYER && !rcon)) continue;
     if (!queue.length) continue;
 
     const batch = queue.splice(0, CMDS_PER_SEC);
     for (let i = 0; i < batch.length; i++) {
       const job = batch[i];
       try {
-        const reply = await rcon.send(job.cmd);
+        const reply = SINGLEPLAYER ? await singleplayer.send(job.cmd, job.id) : await rcon!.send(job.cmd);
         stats.sent++;
         checkReply(job.cmd, reply);
       } catch (err) {
@@ -356,8 +382,8 @@ async function drainLoop() {
         const survivors = batch.slice(i).filter((j) => j.attempts < MAX_CMD_ATTEMPTS && j.expiresAt > Date.now());
         stats.dropped += batch.slice(i).length - survivors.length;
         queue.unshift(...survivors);
-        console.error('[rcon] send failed:', (err as Error).message);
-        markDown('send failed', rcon);
+        console.error(`[${TRANSPORT}] send failed:`, (err as Error).message);
+        markDown('send failed', SINGLEPLAYER ? undefined : rcon);
         break;
       }
     }
@@ -366,11 +392,11 @@ async function drainLoop() {
 
 async function connectRcon() {
   if (DRY) {
-    console.log('[rcon] --dry, commands will be logged not sent');
+    console.log(`[${SINGLEPLAYER ? 'singleplayer' : 'rcon'}] --dry, commands will be logged not sent`);
     void dryDrainLoop();
     return;
   }
-  if (!RCON.password) {
+  if (!SINGLEPLAYER && !RCON.password) {
     console.error('fatal: RCON_PASSWORD is not set. It is the rcon.password line in your');
     console.error("       server's server.properties.");
     console.error(envSourceHint());
@@ -378,7 +404,11 @@ async function connectRcon() {
   }
   void drainLoop();
   const ok = await openRcon();
-  if (!ok) console.warn('[rcon] not connected yet, queueing until the server answers');
+  if (!ok) {
+    console.warn(SINGLEPLAYER
+      ? '[singleplayer] not connected yet, queueing until Minecraft answers'
+      : '[rcon] not connected yet, queueing until the server answers');
+  }
 }
 
 async function dryDrainLoop() {
@@ -1010,7 +1040,11 @@ async function verifyMode() {
   await connectRcon();
 
   for (let i = 0; i < 20 && linkState !== 'up'; i++) await sleep(500);
-  if (linkState !== 'up' || !rcon) throw new Error('could not reach RCON, is the server up?');
+  if (linkState !== 'up' || (!SINGLEPLAYER && !rcon)) {
+    throw new Error(SINGLEPLAYER
+      ? 'could not reach the companion mod; is Minecraft open with a single-player world loaded?'
+      : 'could not reach RCON, is the server up?');
+  }
 
   const samples: Array<[string, string]> = [];
   const seen = new Set<string>();
@@ -1056,9 +1090,13 @@ async function verifyMode() {
   console.log('[verify] nothing will actually run\n');
 
   const bad: Array<[string, string, string]> = [];
-  for (const [label, cmd] of samples) {
+  for (const [index, [label, cmd]] of samples.entries()) {
     let reply = '';
-    try { reply = await rcon.send(NEVER + cmd); }
+    try {
+      reply = SINGLEPLAYER
+        ? await singleplayer.send(NEVER + cmd, `verify-${process.pid}-${index}`)
+        : await rcon!.send(NEVER + cmd);
+    }
     catch (err) { reply = `send failed: ${(err as Error).message}`; }
     const r = (reply ?? '').trim();
     const failed = /^(Unknown|Incorrect|Expected|Invalid|Could not|Failed|send failed)/i.test(r) || r.includes('<--[HERE]');
@@ -1304,13 +1342,14 @@ const argAfter = (flag: string) => {
 // silently ran the wrong mode with no clue that it had. Both stop here now.
 const KNOWN_FLAGS = new Set([
   '--test', '--spy', '--replay', '--verify', '--keys', '--catalog',
-  '--dry', '--user', '--out', '--region', '--help', '-h',
+  '--dry', '--singleplayer', '--user', '--out', '--region', '--help', '-h',
 ]);
 
 function usage() {
   console.log(`TikTok LIVE -> Minecraft bridge
 
-  npx tsx bridge.ts                  Live mode. Needs TIKTOK_USER and a running server.
+  npx tsx bridge.ts                  Live mode. Uses the original Paper/RCON connection.
+  npx tsx bridge.ts --singleplayer   Live mode in a private Fabric single-player world.
   npx tsx bridge.ts --test           Type gift names by hand. No TikTok.
   npx tsx bridge.ts --spy <user>     Watch a live stream and record payloads to a .jsonl.
   npx tsx bridge.ts --replay <file>  Feed recorded payloads through the live handler.
@@ -1321,6 +1360,7 @@ function usage() {
 
 Flags:
   --dry            Log commands instead of sending them.
+  --singleplayer   Send to the local Fabric companion mod instead of RCON.
   --user <name>    Override TIKTOK_USER for live mode.
   --out <path>     Where --catalog writes. Defaults to the file --keys reads.
   --region <code>  Region code to stamp on a catalog. Defaults to the existing file's.

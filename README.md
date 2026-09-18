@@ -3,7 +3,8 @@
 Viewers send gifts on a TikTok LIVE stream and the gift fires a Minecraft command a
 second later: TNT under the streamer, a warden, a wiped inventory, a full nine-second
 finale. It is a Node process that listens to a TikTok LIVE room and pushes commands into
-a local Minecraft server over RCON, so it needs no mods, no plugins and no datapack.
+Minecraft. The original Paper/RCON route remains the default; an opt-in Fabric companion
+mod also supports a private single-player world.
 
 Built for a "beat Minecraft while chat interferes" stream, but the gift map is a plain
 config file: swap the commands and it is a different show.
@@ -37,8 +38,10 @@ Three processes run at the same time, on one machine:
 3. **The bridge** connects outwards to TikTok and inwards to RCON. It never touches the
    client. Every effect you see happens because a command was run on the server.
 
-The bridge is the only piece in this repo. The other two are Minecraft, and
-[docs/SETUP.md](docs/SETUP.md) sets them up from nothing.
+The Paper route needs no mods, plugins, or datapack. [docs/SETUP.md](docs/SETUP.md) sets
+it up from nothing. For private Fabric play instead, follow
+[docs/SINGLEPLAYER.md](docs/SINGLEPLAYER.md); it runs the same gift map and queue without
+starting Paper or changing the multiplayer path.
 
 ### Files
 
@@ -53,6 +56,8 @@ The bridge is the only piece in this repo. The other two are Minecraft, and
 | `catalog-scrape.js` | Browser-console snippet that produces a fresh `gifts-<REGION>.json`. |
 | `fake-rcon.js` | A fake RCON server, for testing the bridge's reconnect behaviour with no Minecraft. |
 | `docs/SETUP.md` | First-time setup, for someone who has never run a Minecraft server. |
+| `docs/SINGLEPLAYER.md` | The private Fabric-world setup; Paper and RCON remain available. |
+| `singleplayer-mod/` | The Fabric 26.2 companion mod used only with `--singleplayer`. |
 | `docs/GOTCHAS.md` | The silent failures. Read this before writing your own gifts. |
 | `examples/` | A hand-written sample recording, so `--replay` works before you have anything. |
 | `tiktoklive-overlay/` | A stream overlay that tells viewers which gift does what. |
@@ -96,7 +101,7 @@ Four variables, all documented in `.env.example`:
 |---|---|---|
 | `MC_PLAYER` | Your exact in-game name, case sensitive | everything that sends commands |
 | `TIKTOK_USER` | Your TikTok handle, no `@` | live mode |
-| `RCON_PASSWORD` | The `rcon.password` from `server.properties` | everything that talks to the server |
+| `RCON_PASSWORD` | The `rcon.password` from `server.properties` | Paper/RCON only; not `--singleplayer` |
 | `EULER_API_KEY` | Euler Stream signing key. Optional, blank works | live mode, `--spy` |
 
 The bridge loads `.env` from the repo root itself, on startup, in every mode. Filling
@@ -124,9 +129,16 @@ npm scripts for the same things, plus the two checks that need nothing at all:
 | `npm run keys` | `--keys` against the shipped catalog. |
 | `npm run verify` | `--verify`. Needs the server. |
 | `npm run sandbox` | `--test`, the interactive one where you type gift names. |
+| `npm run sandbox-singleplayer` | `--test --singleplayer`, against a loaded private Fabric world. |
 | `npm run live` | Live mode. |
+| `npm run live-singleplayer` | Live mode in a loaded private Fabric world. |
 | `npm run spy <handle>` | `--spy`. |
 | `npm run replay <file>` | `--replay`. |
+
+The npm scripts are conveniences. Every mode can still be run directly with
+`npx tsx bridge.ts`; for example, single-player test mode is
+`npx tsx bridge.ts --test --singleplayer`, and single-player live mode is
+`npx tsx bridge.ts --singleplayer`.
 
 ---
 
@@ -143,8 +155,9 @@ npm scripts for the same things, plus the two checks that need nothing at all:
 | *(no flag)* | both | Live mode. |
 
 Flags that combine with any mode: `--dry` logs commands instead of sending them,
-`--user <name>` overrides `TIKTOK_USER` for live mode. `--help` prints the same summary
-as this table. An unrecognised flag is an error, not a silent fall-through to live mode.
+`--singleplayer` uses the local Fabric companion mod instead of RCON, and `--user <name>`
+overrides `TIKTOK_USER` for live mode. `--help` prints the same summary as this table. An
+unrecognised flag is an error, not a silent fall-through to live mode.
 
 ### Pre-stream checklist
 

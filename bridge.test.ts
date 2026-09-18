@@ -36,6 +36,7 @@ import {
 } from './bridge';
 import { ASSUMED_COINS, GIFTS, PRICED, fallback } from './gift-map';
 import { installScheduler, key, later, rep, type Deferred } from './gift-helpers';
+import { SingleplayerClient } from './singleplayer-client';
 
 // Importing bridge.ts installs the real scheduler, which would leave up to nine seconds
 // of live timers behind after a test touches the finale. Replace it with a collector.
@@ -54,6 +55,38 @@ const bannerOf = (cmds: string[]): string => {
 
 const C = String.fromCharCode;
 const P = String.fromCodePoint;
+
+// ------------------------------------------------------ single-player transport
+
+test('single-player client uses the private companion-mod protocol', async () => {
+  const calls: Array<{ url: string; init: RequestInit }> = [];
+  const fakeFetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({ url: String(input), init: init ?? {} });
+    return new Response(calls.length === 1 ? 'ready' : 'OK');
+  }) as typeof fetch;
+  const client = new SingleplayerClient('http://127.0.0.1:25576', fakeFetch);
+
+  await client.connect();
+  await client.send('give Nebbz golden_apple 1', 'test-command-1');
+
+  assert.equal(calls[0].url, 'http://127.0.0.1:25576/health');
+  assert.equal(calls[0].init.method, 'GET');
+  assert.equal(new Headers(calls[0].init.headers).get('X-TikTok-Bridge'), '1');
+  assert.equal(calls[1].url, 'http://127.0.0.1:25576/command');
+  assert.equal(calls[1].init.method, 'POST');
+  assert.equal(calls[1].init.body, 'give Nebbz golden_apple 1');
+  assert.equal(new Headers(calls[1].init.headers).get('Content-Type'), 'text/plain; charset=utf-8');
+  assert.equal(new Headers(calls[1].init.headers).get('X-TikTok-Command-Id'), 'test-command-1');
+});
+
+test('single-player client surfaces a world-not-loaded response', async () => {
+  const fakeFetch = (async () => new Response(
+    'Minecraft is open, but no single-player world is loaded',
+    { status: 503 },
+  )) as typeof fetch;
+  const client = new SingleplayerClient('http://127.0.0.1:25576', fakeFetch);
+  await assert.rejects(client.connect(), /no single-player world is loaded/);
+});
 
 // ---------------------------------------------------------------- key()
 

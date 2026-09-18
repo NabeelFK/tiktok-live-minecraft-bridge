@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "tiktok_singleplayer_bridge",
+  "version": "${version}",
+  "name": "TikTok Singleplayer Bridge",
+  "description": "Lets the local TikTok bridge execute gift commands in an integrated single-player world.",
+  "authors": ["nabee"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "main": ["dev.nabbee.tiktokbridge.TikTokSingleplayerBridge"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

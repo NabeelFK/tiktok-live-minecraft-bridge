@@ -14,9 +14,11 @@
     "keys": "tsx bridge.ts --keys",
     "verify": "tsx bridge.ts --verify",
     "sandbox": "tsx bridge.ts --test",
+    "sandbox-singleplayer": "tsx bridge.ts --test --singleplayer",
     "spy": "tsx bridge.ts --spy",
     "replay": "tsx bridge.ts --replay",
-    "live": "tsx bridge.ts"
+    "live": "tsx bridge.ts",
+    "live-singleplayer": "tsx bridge.ts --singleplayer"
   },
   "dependencies": {
     "dotenv": "17.4.2",
