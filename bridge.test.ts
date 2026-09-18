@@ -114,6 +114,11 @@ test('resolve() scales a streak on the gifts that can be repeated', () => {
   assert.equal(resolve('Rose', 1, 1).length, 2);
 });
 
+test('the two gear help gifts include Eyes of Ender', () => {
+  assert.ok(resolve('Cello Romance', 1, 299).some((c) => c.endsWith('ender_eye 4')));
+  assert.ok(resolve('Swan', 1, 699).some((c) => c.endsWith('ender_eye 12')));
+});
+
 test('resolveGiftBatch() runs every gift in a completed streak', () => {
   const cmds = resolveGiftBatch('Doughnut', 3, 30);
   assert.equal(cmds.filter((c) => c.includes('summon zombie')).length, 12);

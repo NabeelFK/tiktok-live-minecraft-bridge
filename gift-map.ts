@@ -271,7 +271,7 @@ export const GIFTS: Record<string, Action> = {
   // HELP 3 of 4. THE DIAMOND KIT. The lower rung of a two-tier ladder: this and
   // `swan` are deliberately THE SAME GIFT in different metal, so a viewer who has seen
   // one can read the other without being told. Armour, sword, pickaxe, totems, golden
-  // apples, logs - same list, same order, better numbers at 699.
+  // apples, logs, Eyes of Ender - same list, same order, better numbers at 699.
   //
   // Key history: `dancingflower` (199) was never a CA gift. `lovecall` (299) was, and
   // has since been retired. Now Cello Romance, also 299, confirmed in a live panel.
@@ -280,7 +280,7 @@ export const GIFTS: Record<string, Action> = {
   // answers, and it is still the cheapest gear-restoring HELP in the map.
   //
   // Totems do not stack, so `totem_of_undying 3` is three inventory slots, not one.
-  // Ten commands; give past a full inventory drops at the player's feet, never voids.
+  // Eleven commands; give past a full inventory drops at the player's feet, never voids.
   celloromance: () => [
     banner('DIAMOND KIT', 'aqua'),
     `give ${MC_PLAYER} diamond_helmet 1`,
@@ -292,6 +292,7 @@ export const GIFTS: Record<string, Action> = {
     `give ${MC_PLAYER} totem_of_undying 3`,
     `give ${MC_PLAYER} golden_apple 32`,
     `give ${MC_PLAYER} oak_log 64`,
+    `give ${MC_PLAYER} ender_eye 12`,
   ],
 
   // INVENTORY WIPED. Everything. `clear <player>` with no item argument empties
@@ -315,7 +316,7 @@ export const GIFTS: Record<string, Action> = {
   // crafting recipe, not the item. Everything arrives unenchanted.
   //
   // Neither totems nor beds stack, so this is 6 gear + 5 totem slots + 8 bed slots +
-  // 2 stacks = 21 inventory slots out of 36. Eleven commands.
+  // 3 stacks = 22 inventory slots out of 36. Twelve commands.
   swan: () => [
     banner('NETHERITE KIT', 'aqua'),
     `give ${MC_PLAYER} netherite_helmet 1`,
@@ -328,6 +329,7 @@ export const GIFTS: Record<string, Action> = {
     `give ${MC_PLAYER} golden_apple 64`,
     `give ${MC_PLAYER} oak_log 64`,
     `give ${MC_PLAYER} white_bed 8`,
+    `give ${MC_PLAYER} ender_eye 12`,
   ],
 
   // ═══════════════ 899+ COINS: RUN THREAT. Costs potentially everything. ═══════════════
@@ -467,4 +469,3 @@ export const PRICED: Record<string, PricedVariant[]> = {
   // --catalog capture: the June scrape listed only one Sports Car.
   sportscar: [{ minCoins: 7000 }],
 };
-
