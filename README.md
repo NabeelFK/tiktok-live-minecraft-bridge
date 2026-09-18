@@ -13,7 +13,7 @@ config file: swap the commands and it is a different show.
 
 ## Architecture
 
-Three processes run at the same time, on one machine:
+The default Paper/RCON route runs three processes on one machine:
 
 ```
    TikTok LIVE room
@@ -42,6 +42,25 @@ The Paper route needs no mods, plugins, or datapack. [docs/SETUP.md](docs/SETUP.
 it up from nothing. For private Fabric play instead, follow
 [docs/SINGLEPLAYER.md](docs/SINGLEPLAYER.md); it runs the same gift map and queue without
 starting Paper or changing the multiplayer path.
+
+The optional single-player route replaces the separate Paper process and RCON connection
+with a small Fabric companion mod inside Minecraft's integrated server:
+
+```
+   TikTok LIVE room
+          |
+          v
+   bridge.ts  (Node, run with tsx)
+          |
+          |  local HTTP, 127.0.0.1:25576
+          v
+   Minecraft Fabric client
+   (private single-player world + companion mod)
+```
+
+Both routes use the same TikTok handlers, gift map, batching rules, command queue, and
+delayed effects. `--singleplayer` changes only the command transport. Without that flag,
+the original Paper/RCON behaviour remains the default.
 
 ### Files
 
@@ -90,10 +109,77 @@ It takes about fifteen seconds, because the last two gifts do not finish when th
 commands go out: one seals a pit 2.5 seconds later and the other is a nine-second staged
 finale. The replay waits for them and prints what it is waiting for.
 
-### Then the real thing
+### Choose where Minecraft runs
 
-The rest assumes a Paper server with RCON enabled and a client joined to it. If you do
-not have that yet, do [docs/SETUP.md](docs/SETUP.md) - it is the harder half.
+The bridge supports two independent Minecraft targets:
+
+- **Private single-player:** Fabric 26.2 plus the companion mod. No Paper server or RCON.
+- **Multiplayer:** the original Paper server and RCON setup.
+
+#### Option A: private Fabric single-player
+
+Requirements:
+
+- Minecraft Java Edition 26.2
+- Fabric Loader 0.19.3 or newer
+- [Fabric API](https://modrinth.com/mod/fabric-api)
+- Java 25 for building and running Minecraft 26.2
+
+Build the companion mod after cloning the repository.
+
+Windows PowerShell:
+
+```powershell
+cd singleplayer-mod
+.\gradlew.bat build
+cd ..
+```
+
+macOS or Linux:
+
+```sh
+cd singleplayer-mod
+./gradlew build
+cd ..
+```
+
+Copy `singleplayer-mod/build/libs/tiktok-singleplayer-bridge-1.0.0.jar` and Fabric API
+into the Fabric instance's `mods` folder. Fabric loads compatible jars automatically;
+there is no in-game mod-selection step. Chunk Randomizer is optional and can be installed
+in the same folder when that challenge is wanted.
+
+Start Minecraft and enter the private world before starting the bridge. Disable
+pause-on-lost-focus with `F3+P`, then test the complete Minecraft path:
+
+```sh
+npx tsx bridge.ts --test --singleplayer
+```
+
+Type a gift name, `follow tester`, or `likes 900`. For a real TikTok LIVE stream:
+
+```sh
+npx tsx bridge.ts --singleplayer
+```
+
+`RCON_PASSWORD` is not needed in this mode. The companion mod listens only on
+`127.0.0.1:25576`; it does not open the world to LAN or accept another computer.
+See [docs/SINGLEPLAYER.md](docs/SINGLEPLAYER.md) for troubleshooting and launcher-specific
+mods-folder details.
+
+#### Option B: Paper/RCON multiplayer
+
+Set up a Paper server with RCON enabled and join it from the Minecraft client. Follow
+[docs/SETUP.md](docs/SETUP.md) for the complete first-time setup, then use the original
+commands:
+
+```sh
+npx tsx bridge.ts --test
+npx tsx bridge.ts
+```
+
+Do not pass `--singleplayer` for this route.
+
+### Environment configuration
 
 Four variables, all documented in `.env.example`:
 
@@ -111,14 +197,17 @@ tomorrow's terminal window.
 A variable set in your shell overrides the file, so a one-off is easy:
 `$env:MC_PLAYER = "SomeoneElse"` in PowerShell, `export MC_PLAYER=SomeoneElse` in bash.
 
-Then, in order:
+For either route, the usual pre-stream checks are:
 
 ```sh
 npx tsx bridge.ts --keys      # is every gift in your map real, at the price you assumed?
-npx tsx bridge.ts --verify    # does every command parse on your server? (server must be up)
-npx tsx bridge.ts --test      # type gift names by hand and watch what happens
-npx tsx bridge.ts             # live
+npx tsx bridge.ts --verify    # Paper/RCON command verification
+npx tsx bridge.ts --test      # Paper/RCON interactive test
+npx tsx bridge.ts             # Paper/RCON live mode
 ```
+
+Add `--singleplayer` to `--verify`, `--test`, or live mode when using a loaded Fabric
+single-player world instead.
 
 npm scripts for the same things, plus the two checks that need nothing at all:
 
@@ -153,6 +242,13 @@ The npm scripts are conveniences. Every mode can still be run directly with
 | `--keys [catalog.json]` | nothing | Checks the map against a region's gift catalog: keys no gift produces, two gifts colliding on one key, and prices that have drifted. Offline, no server, deterministic. Warns when the catalog is more than about a month old. Exit code 1 on any failure. |
 | `--catalog [user]` | TikTok | Connects to a live room, reads the gift panel that room actually offers, and writes it over the catalog file `--keys` reads. Defaults to `TIKTOK_USER`, so pointed at your own stream it captures exactly what your viewers see. Prints what changed since the last capture: gifts added, gifts gone, prices moved. `--out <path>` and `--region <code>` override the destination and the stamped region. |
 | *(no flag)* | both | Live mode. |
+
+Transport flag:
+
+| Flag | Minecraft target |
+|---|---|
+| *(omitted)* | Original Paper server over RCON at `127.0.0.1:25575`. |
+| `--singleplayer` | Loaded Fabric single-player world through the companion mod at `127.0.0.1:25576`. |
 
 Flags that combine with any mode: `--dry` logs commands instead of sending them,
 `--singleplayer` uses the local Fabric companion mod instead of RCON, and `--user <name>`
