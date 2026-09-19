@@ -255,6 +255,11 @@ Flags that combine with any mode: `--dry` logs commands instead of sending them,
 overrides `TIKTOK_USER` for live mode. `--help` prints the same summary as this table. An
 unrecognised flag is an error, not a silent fall-through to live mode.
 
+`--no-like-creepers` starts the bridge with like-triggered creepers disabled. During a
+live run, type `likes off`, `likes on`, or `likes status` directly into the bridge
+terminal to control them without restarting the stream. Like totals continue updating
+while the effect is off, so turning it on later does not release a stored backlog.
+
 ### Pre-stream checklist
 
 Run these, in this order, every time. They fail in different ways and none of them
@@ -328,7 +333,7 @@ than in the gift map.
 | Action | Effect | Guard |
 |---|---|---|
 | Follow | One golden carrot | One per account per session. |
-| Every 500 likes | One creeper, spawned at the player | One creeper per event, however many thresholds it crossed. |
+| Every 100 likes | One creeper, spawned at the player | Every crossed threshold is honored unless like creepers are disabled. |
 
 **Neither is rate limited.** The follow guard is on identity, not on rate: the same
 account cannot re-follow for repeat carrots, but a raid of 200 distinct accounts is 200
@@ -336,11 +341,11 @@ carrots, because each of those is a different person following for the first tim
 only backstop is the command queue's own backlog cap, which drops commands rather than
 letting the show fall minutes behind.
 
-For likes, the threshold IS the governor, which is why it is 500 and not 100. A busy room
-satisfies 100 likes continuously, so at that number a creeper would land as often as
-anything let it, and a creeper is the only effect in the map that permanently changes the
-terrain. Blindness wears off and gear can be re-got; holes in the floor accumulate for the
-whole stream. At 500 a milestone is an event that happens a few times an hour.
+For likes, the threshold is the only automatic governor. The shipped value is 100, which
+can be extremely aggressive in a busy room or when viewers use autoclickers. Start a
+stream with `--no-like-creepers`, or type `likes off` in the live bridge terminal, to
+keep processing gifts and follows while suppressing only the like creepers. `likes on`
+re-enables them for future thresholds and `likes status` reports the current state.
 
 Likes need more care than follows in two other ways.
 
@@ -350,18 +355,17 @@ event and the room's running total for the stream, and the bridge counts boundar
 the running total. That is what makes it survive a reconnect: a locally summed counter
 would reset, and a viewer who tapped ninety times would have to earn them again.
 
-**One event can cross several thresholds.** A payload carrying 1,500 likes crosses three
-five-hundred-marks at once. That fires **one** creeper, not three. Three creepers at the same
-time is not three times the effect, it is a guaranteed death and a crater, in exchange
-for an action nobody paid for. The console still prints how many boundaries went by.
+**One event can cross several thresholds.** Every boundary is preserved, so a payload
+that crosses three hundred-like marks queues three creepers when the effect is enabled.
+This is why the live toggle matters: disabling it suppresses all of those spawns without
+breaking the running-total baseline.
 
 Starting the bridge into a room that is already at 5,000 likes does not owe ten creepers:
 the first event credits only the likes it carried and adopts the rest as the baseline.
 
-To change the threshold, edit `LIKES_PER_CREEPER` in `bridge.ts`. It is the only place
-the number is written down. To change what a milestone does, edit `likeCreeperCommands()`
-next to it; `--verify` checks whatever is
-in there along with every gift.
+To change the threshold permanently, edit `LIKES_PER_CREEPER` in `bridge.ts`. To replace
+the creeper with a different effect, edit `likeCreeperCommands()` next to it; `--verify`
+checks whatever is in there along with every gift.
 
 ---
 

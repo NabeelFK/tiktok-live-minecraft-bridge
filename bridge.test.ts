@@ -21,18 +21,22 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 import {
   LIKES_PER_CREEPER,
+  areLikeCreepersEnabled,
   cancelPendingStages,
   catalogAgeDays,
   catalogAge,
   decideLike,
+  likeEffectCommands,
   likeCreeperCommands,
   likeThresholdsCrossed,
   normalizeCatalogGifts,
   pendingStageSummary,
+  parseLikeControl,
   resolve,
   resolveGiftBatch,
   sanitize,
   scheduleStage,
+  setLikeCreepersEnabled,
 } from './bridge';
 import { ASSUMED_COINS, GIFTS, PRICED, fallback } from './gift-map';
 import { installScheduler, key, later, rep, type Deferred } from './gift-helpers';
@@ -577,4 +581,33 @@ test('LIKES_PER_CREEPER is the only place the threshold is written down', () => 
   const d = decideLike(LIKES_PER_CREEPER - 1, 1, String(LIKES_PER_CREEPER));
   assert.equal(d.kind, 'creeper');
   assert.equal(d.milestone, LIKES_PER_CREEPER);
+});
+
+test('like creeper terminal controls are explicit and do not eat numeric test input', () => {
+  assert.equal(parseLikeControl('likes off'), 'off');
+  assert.equal(parseLikeControl('  LIKES   ON  '), 'on');
+  assert.equal(parseLikeControl('likes status'), 'status');
+  assert.equal(parseLikeControl('likes 900'), null);
+  assert.equal(parseLikeControl('rose'), null);
+});
+
+test('like creeper switch can be toggled without changing the counter math', () => {
+  const original = areLikeCreepersEnabled();
+  try {
+    setLikeCreepersEnabled(false);
+    assert.equal(areLikeCreepersEnabled(), false);
+    const whileOff = decideLike(90, 20, '110', 100);
+    assert.equal(whileOff.total, 110, 'the running total still advances while effects are off');
+    assert.equal(whileOff.crossed, 1, 'threshold accounting remains intact');
+    assert.deepEqual(likeEffectCommands(whileOff, false), [], 'OFF emits no creeper commands');
+    assert.equal(
+      likeEffectCommands(whileOff, true).filter((cmd) => cmd.includes('summon creeper')).length,
+      1,
+      'ON emits the crossed threshold normally',
+    );
+    setLikeCreepersEnabled(true);
+    assert.equal(areLikeCreepersEnabled(), true);
+  } finally {
+    setLikeCreepersEnabled(original);
+  }
 });

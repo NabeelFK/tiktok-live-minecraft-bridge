@@ -68,6 +68,7 @@ const TT_BACKOFF_MAX = 300_000;  // sign requests are metered, so back off hard
 const DRY = process.argv.includes('--dry');
 const VERIFY = process.argv.includes('--verify');
 const SINGLEPLAYER = process.argv.includes('--singleplayer');
+const NO_LIKE_CREEPERS = process.argv.includes('--no-like-creepers');
 const TRANSPORT = SINGLEPLAYER ? 'singleplayer' : 'rcon';
 
 // nicknames are user-controlled and go straight into a server command.
@@ -469,12 +470,11 @@ function handleFollow(data: any, tag = 'follow') {
 // (still visible in tiktok-live-proto/dist/node/v1.d.ts). If likes ever stop firing,
 // that rename is the first thing to check with --spy.
 
-// 500, not 100. There is no rate limit behind this, so the threshold is the only thing
-// governing how often a creeper lands. At 100 a busy room satisfies it continuously and
-// the number stops meaning anything; at 500 a milestone is an event that happens a few
-// times an hour. It matters more here than for any other effect because a creeper is the
-// only thing in the map that permanently changes the terrain: blindness wears off and
-// gear can be re-got, but holes in the floor accumulate for the whole stream.
+// There is deliberately no hidden rate limit: when enabled, every crossed threshold is
+// honored, including several thresholds carried by one batched TikTok event. A streamer
+// can disable the effect for a whole run with --no-like-creepers or toggle it live from
+// the terminal with `likes off` / `likes on`. Counting continues while it is disabled,
+// so turning it back on never releases a backlog of creepers.
 export const LIKES_PER_CREEPER = 100;
 
 /**
@@ -566,8 +566,45 @@ export function likeCreeperCommands(
   return commands;
 }
 
+/** Convert a like decision into commands only when the live switch permits the effect. */
+export function likeEffectCommands(decision: LikeDecision, enabled: boolean): string[] {
+  return enabled && decision.kind === 'creeper'
+    ? likeCreeperCommands(decision.milestone, decision.crossed)
+    : [];
+}
+
 let likeTotal: number | null = null;
 let likeTotalWarned = false;
+let likeCreepersEnabled = !NO_LIKE_CREEPERS;
+
+export type LikeControl = 'on' | 'off' | 'status';
+
+/** Parse only the three terminal controls; normal test-mode `likes 900` is not one. */
+export function parseLikeControl(line: string): LikeControl | null {
+  const normalized = line.trim().toLowerCase().replace(/\s+/g, ' ');
+  if (normalized === 'likes on') return 'on';
+  if (normalized === 'likes off') return 'off';
+  if (normalized === 'likes status') return 'status';
+  return null;
+}
+
+export function setLikeCreepersEnabled(enabled: boolean) {
+  likeCreepersEnabled = enabled;
+}
+
+export function areLikeCreepersEnabled(): boolean {
+  return likeCreepersEnabled;
+}
+
+/** Handle a terminal control and say exactly what changed. */
+function runLikeControl(line: string): boolean {
+  const control = parseLikeControl(line);
+  if (!control) return false;
+  if (control !== 'status') setLikeCreepersEnabled(control === 'on');
+  console.log(`[likes] creeper effects are ${likeCreepersEnabled ? 'ON' : 'OFF'}`);
+  if (!likeCreepersEnabled) console.log('[likes] totals are still tracked; no backlog will fire when re-enabled');
+  return true;
+}
 
 function handleLike(data: any, tag = 'like') {
   const name = sanitize(String(data?.user?.nickname ?? 'someone'));
@@ -589,10 +626,12 @@ function handleLike(data: any, tag = 'like') {
     return;
   }
   if (d.kind !== 'creeper') return;
+  const commands = likeEffectCommands(d, likeCreepersEnabled);
+  if (!commands.length) return;
 
   const extra = d.crossed > 1 ? ` (${d.crossed} thresholds in one event, ${d.crossed} creepers)` : '';
   console.log(`[${tag}] ${name} +${d.counted} -> ${d.total} likes, ${d.milestone} milestone${extra}`);
-  enqueue(likeCreeperCommands(d.milestone, d.crossed));
+  enqueue(commands);
 }
 
 // ---------- shared gift handler ----------
@@ -674,11 +713,14 @@ async function testMode() {
   console.log('\nType: <gift name> [count] [!coins]   e.g.  rose 5     or    unknown thing !1500');
   console.log('Or:   follow <name>                  to test the follow reward and the per-account dedupe');
   console.log(`Or:   likes <n>                       to add n likes and cross the ${LIKES_PER_CREEPER}-like thresholds`);
+  console.log('Or:   likes off | likes on | likes status');
+  console.log(`[likes] creeper effects start ${likeCreepersEnabled ? 'ON' : 'OFF'} for this run`);
   console.log('Known gifts:', Object.keys(GIFTS).join(', '));
   console.log('Anything else falls through to the coin-value fallback.\n');
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   rl.on('line', (line) => {
+    if (runLikeControl(line)) return;
     let parts = line.trim().split(/\s+/);
     if (!parts[0]) return;
 
@@ -815,6 +857,17 @@ async function liveMode(username: string) {
   else console.warn('[tiktok] no EULER_API_KEY, using free community sign limits');
 
   await connectRcon();
+
+  console.log(`[likes] creeper effects start ${likeCreepersEnabled ? 'ON' : 'OFF'} for this run`);
+  console.log('[likes] terminal controls: likes off | likes on | likes status');
+  if (process.stdin.isTTY) {
+    const controls = readline.createInterface({ input: process.stdin, output: process.stdout });
+    controls.on('line', (line) => {
+      if (line.trim() && !runLikeControl(line)) {
+        console.log('[controls] unknown command; use likes off, likes on, or likes status');
+      }
+    });
+  }
 
   const connect = async () => {
     if (shuttingDown) return;
@@ -1342,7 +1395,7 @@ const argAfter = (flag: string) => {
 // silently ran the wrong mode with no clue that it had. Both stop here now.
 const KNOWN_FLAGS = new Set([
   '--test', '--spy', '--replay', '--verify', '--keys', '--catalog',
-  '--dry', '--singleplayer', '--user', '--out', '--region', '--help', '-h',
+  '--dry', '--singleplayer', '--no-like-creepers', '--user', '--out', '--region', '--help', '-h',
 ]);
 
 function usage() {
@@ -1361,6 +1414,9 @@ function usage() {
 Flags:
   --dry            Log commands instead of sending them.
   --singleplayer   Send to the local Fabric companion mod instead of RCON.
+  --no-like-creepers
+                   Start with like-triggered creepers disabled. Toggle live by typing
+                   likes off, likes on, or likes status in the bridge terminal.
   --user <name>    Override TIKTOK_USER for live mode.
   --out <path>     Where --catalog writes. Defaults to the file --keys reads.
   --region <code>  Region code to stamp on a catalog. Defaults to the existing file's.
