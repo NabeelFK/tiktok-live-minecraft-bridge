@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<!--
+  Large rotating gift overlay for TikTok LIVE Studio.
+
+  Two gifts are shown per page. This is a separate alternative to gift-overlay.html;
+  neither the original rotating overlay nor either static overlay is modified here.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Large rotating gift overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --panel: rgba(22, 24, 30, .97);
+    --panel-help: rgba(27, 58, 34, .98);
+    --harm: #ff4545;
+    --help: #40d45a;
+    --text: #ffffff;
+    --text-dim: #e0e2e7;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  body {
+    padding: clamp(12px, 1.8vh, 28px);
+    color: var(--text);
+    font-family: Inter, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: clamp(8px, 1vh, 14px);
+  }
+
+  .cards {
+    min-height: 0;
+    display: grid;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: clamp(10px, 1.3vh, 20px);
+  }
+
+  .card {
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: clamp(100px, 14vh, 170px) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: clamp(18px, 2vw, 36px);
+    overflow: hidden;
+    padding: clamp(18px, 2.5vh, 38px) clamp(22px, 2.6vw, 48px);
+    border: 3px solid rgba(255,255,255,.14);
+    border-left: clamp(12px, 1vw, 20px) solid var(--harm);
+    border-radius: clamp(12px, 1.2vw, 22px);
+    background: var(--panel);
+    box-shadow: 0 10px 30px rgba(0,0,0,.5);
+  }
+
+  .card[data-kind="help"] {
+    border-left-color: var(--help);
+    background: linear-gradient(90deg, var(--panel-help), var(--panel) 42%);
+  }
+
+  .icon,
+  .icon-fallback {
+    width: clamp(100px, 14vh, 170px);
+    height: clamp(100px, 14vh, 170px);
+  }
+
+  .icon {
+    object-fit: contain;
+    filter: drop-shadow(0 5px 10px rgba(0,0,0,.65));
+  }
+
+  .icon-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    background: rgba(255,255,255,.07);
+    font: clamp(14px, 1.7vh, 22px)/1.15 Silkscreen, monospace;
+    text-align: center;
+  }
+
+  .copy { min-width: 0; }
+
+  .effect {
+    overflow: hidden;
+    color: var(--harm);
+    font-family: Silkscreen, monospace;
+    font-size: clamp(34px, 5.3vh, 64px);
+    font-weight: 700;
+    line-height: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-shadow: 0 3px 7px rgba(0,0,0,.72);
+  }
+
+  .card[data-kind="help"] .effect { color: var(--help); }
+
+  .giftname {
+    margin-top: clamp(8px, 1vh, 15px);
+    overflow: hidden;
+    color: var(--text);
+    font-size: clamp(25px, 3.5vh, 44px);
+    font-weight: 800;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .blurb {
+    margin-top: clamp(10px, 1.3vh, 20px);
+    overflow: hidden;
+    color: var(--text-dim);
+    display: -webkit-box;
+    font-size: clamp(22px, 3.2vh, 39px);
+    font-weight: 700;
+    line-height: 1.16;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  .verdict {
+    min-width: clamp(88px, 8vw, 130px);
+    padding: clamp(14px, 2vh, 26px) clamp(10px, 1vw, 18px);
+    color: #101216;
+    background: var(--harm);
+    border-radius: 10px;
+    font: 700 clamp(19px, 2.6vh, 34px)/1 Silkscreen, monospace;
+    text-align: center;
+    box-shadow: 0 5px 14px rgba(0,0,0,.42);
+  }
+
+  .card[data-kind="help"] .verdict { background: var(--help); }
+
+  .footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    min-height: clamp(18px, 2.4vh, 30px);
+  }
+
+  .timer {
+    height: clamp(8px, 1vh, 14px);
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(0,0,0,.62);
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.1);
+  }
+
+  .timer span {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--help), #ffe066, var(--harm));
+    transform-origin: left;
+  }
+
+  .counter {
+    min-width: 84px;
+    color: var(--text-dim);
+    font: 700 clamp(15px, 1.8vh, 23px)/1 Silkscreen, monospace;
+    text-align: right;
+    text-shadow: 0 2px 5px rgba(0,0,0,.75);
+  }
+
+  .swap { animation: swap .3s ease-out; }
+
+  @keyframes swap {
+    from { opacity: 0; transform: translateX(-16px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @keyframes drain {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .swap { animation: none; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <section class="cards" id="cards" aria-live="polite"></section>
+  <footer class="footer">
+    <div class="timer"><span id="bar"></span></div>
+    <div class="counter" id="counter"></div>
+  </footer>
+</main>
+
+<script>
+const ROTATE_MS = 6000;
+
+const GIFTS = [
+  { name: 'Rose',                icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp', effect: 'TNT',             blurb: 'Drops primed TNT on me with only 3 seconds to escape.', kind: 'harm' },
+  { name: 'TikTok',              icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/802a21ae29f9fae5abe3693de9f874bd~tplv-obj.webp', effect: 'STRIKE',          blurb: 'Strikes me with lightning exactly where I am standing.', kind: 'harm' },
+  { name: 'GG',                  icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/3f02fa9594bd1495ff4e8aa5ae265eef~tplv-obj.webp', effect: 'WEBBED',          blurb: 'Places a cobweb on me, trapping me until I break free.', kind: 'harm' },
+  { name: 'Ice Cream Cone',      icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/968820bc85e274713c795a6aef3f7c67~tplv-obj.webp', effect: 'WOOZY',           blurb: 'Gives me nausea for 15 seconds and makes my screen spin.', kind: 'harm' },
+  { name: 'Heart Me',            icon: 'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/composed.b326356a360b67b367c5cae58fe337b1.png~tplv-obj.webp', effect: 'GOLDEN APPLE',    blurb: 'Gives me a golden apple for healing and absorption.', kind: 'help' },
+  { name: 'Finger Heart',        icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/a4c4dc437fd3a6632aba149769491f49.png~tplv-obj.webp', effect: 'SLUDGE',          blurb: 'Gives Mining Fatigue III and Slowness II for 20 seconds.', kind: 'harm' },
+  { name: 'BFF Necklace',        icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/e033c3f28632e233bebac1668ff66a2f.png~tplv-obj.webp', effect: 'LAUNCHED',        blurb: 'Launches me upward and gives Resistance so the landing will not hurt.', kind: 'harm' },
+  { name: 'Perfume',             icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/20b8f61246c7b6032777bb81bf4ee055~tplv-obj.webp', effect: 'FLOAT',           blurb: 'Makes me levitate for 20 seconds, then drops me back down.', kind: 'harm' },
+  { name: 'Doughnut',            icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/4e7ad6bdf0a1d860c538f38026d4e812~tplv-obj.webp', effect: 'BLACKOUT',        blurb: 'Blinds me for 10 seconds and surrounds me with 6 hostile mobs.', kind: 'harm' },
+  { name: 'Paper Crane',         icon: 'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/0f158a08f7886189cdabf496e8a07c21~tplv-obj.webp', effect: 'UPROOTED',        blurb: 'Teleports me 60–120 blocks off course in a random direction.', kind: 'harm' },
+  { name: 'Hat and Mustache',    icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/2f1e4f3f5c728ffbfa35705b480fdc92~tplv-obj.webp', effect: 'HOTBAR WIPED',    blurb: 'Deletes all 9 hotbar slots; items stored in my backpack survive.', kind: 'harm' },
+  { name: 'Hand Heart',          icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/6cd022271dc4669d182cad856384870f~tplv-obj.webp', effect: 'BURIED',          blurb: 'Drops me 12 blocks underground, then seals the opening with stone.', kind: 'harm' },
+  { name: 'Flowers',             icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/697bf9450c55c2ee569c8e8b2cab7152~tplv-obj.webp', effect: 'SECOND WIND',     blurb: 'Gives Regeneration IV for 60 seconds to rapidly heal me.', kind: 'help' },
+  { name: 'Love You',            icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/134e51c00f46e01976399883ca4e4798~tplv-obj.webp', effect: 'GEAR GONE',       blurb: 'Deletes all armor plus every tool, weapon, shield and elytra I carry.', kind: 'harm' },
+  { name: 'Balloons',            icon: 'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/c370d5c4ab6e5971b6b17de3eab6f6d4.png~tplv-obj.webp', effect: 'FLOOR GONE',      blurb: 'Removes a 5×12×5 shaft beneath me, dropping me straight down.', kind: 'harm' },
+  { name: 'Corgi',               icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/148eef0884fdb12058d1c6897d1e02b9~tplv-obj.webp', effect: 'RELOCATED',       blurb: 'Teleports me 150–400 blocks away in a random direction.', kind: 'harm' },
+  { name: 'Cello Romance',       icon: 'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/4756a2a4604d2cb5bb5b0639b259e9b5.png~tplv-obj.webp', effect: 'DIAMOND KIT',     blurb: 'Gives diamond armor, sword, pickaxe, 3 totems, 32 gapples, logs and 12 Eyes.', kind: 'help' },
+  { name: 'Money Gun',           icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/e0589e95a2b41970f0f30f6202f5fce6~tplv-obj.webp', effect: 'INVENTORY WIPED', blurb: 'Deletes my entire inventory, including armor and offhand items.', kind: 'harm' },
+  { name: 'Swan',                icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/97a26919dbf6afe262c97e22a83f4bf1~tplv-obj.webp', effect: 'NETHERITE KIT',   blurb: 'Gives a Netherite kit, 5 totems, 64 gapples, logs, 8 beds and 12 Eyes.', kind: 'help' },
+  { name: 'Train',               icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/4227ed71f2c494b554f9cbe2147d4899~tplv-obj.webp', effect: 'SKY DIVE',        blurb: 'Teleports me 120 blocks straight into the sky with no safe landing.', kind: 'harm' },
+  { name: 'Galaxy',              icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/79a02148079526539f7599150da9fd28.png~tplv-obj.webp', effect: 'WARDEN',          blurb: 'Spawns a Warden beside me and gives Darkness for 20 seconds.', kind: 'harm' },
+  { name: 'Sports Car',          icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/e7ce188da898772f18aaffe49a7bd7db~tplv-obj.webp', effect: 'THE FINALE',      blurb: 'Protects and launches me, then surrounds me with lightning and 20 Withers.', kind: 'harm' },
+];
+
+const VERDICT = { harm: 'HURTS', help: 'HELPS' };
+const PAGES = Array.from({ length: Math.ceil(GIFTS.length / 2) }, (_, index) =>
+  GIFTS.slice(index * 2, index * 2 + 2),
+);
+
+const cards = document.getElementById('cards');
+const bar = document.getElementById('bar');
+const counter = document.getElementById('counter');
+let pageIndex = 0;
+
+function fallbackIcon() {
+  const box = document.createElement('div');
+  box.className = 'icon-fallback';
+  box.textContent = 'NO ICON';
+  return box;
+}
+
+function cardFor(gift) {
+  const card = document.createElement('article');
+  card.className = 'card';
+  card.dataset.kind = gift.kind;
+
+  const icon = document.createElement('img');
+  icon.className = 'icon';
+  icon.src = gift.icon;
+  icon.alt = '';
+  icon.addEventListener('error', () => icon.replaceWith(fallbackIcon()), { once: true });
+
+  const copy = document.createElement('div');
+  copy.className = 'copy';
+
+  const effect = document.createElement('div');
+  effect.className = 'effect';
+  effect.textContent = gift.effect;
+
+  const name = document.createElement('div');
+  name.className = 'giftname';
+  name.textContent = gift.name;
+
+  const blurb = document.createElement('div');
+  blurb.className = 'blurb';
+  blurb.textContent = gift.blurb;
+
+  const verdict = document.createElement('div');
+  verdict.className = 'verdict';
+  verdict.textContent = VERDICT[gift.kind];
+
+  copy.append(effect, name, blurb);
+  card.append(icon, copy, verdict);
+  return card;
+}
+
+function restartTimer() {
+  bar.style.animation = 'none';
+  void bar.offsetWidth;
+  bar.style.animation = `drain ${ROTATE_MS}ms linear forwards`;
+}
+
+function showPage() {
+  cards.replaceChildren(...PAGES[pageIndex].map(cardFor));
+  cards.classList.remove('swap');
+  void cards.offsetWidth;
+  cards.classList.add('swap');
+  counter.textContent = `${pageIndex + 1} / ${PAGES.length}`;
+  restartTimer();
+}
+
+showPage();
+setInterval(() => {
+  pageIndex = (pageIndex + 1) % PAGES.length;
+  showPage();
+}, ROTATE_MS);
+</script>
+</body>
+</html>

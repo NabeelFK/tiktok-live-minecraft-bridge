@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<!--
+  Portrait static gift overlay for TikTok LIVE Studio.
+
+  Designed for a 1080x1920 (9:16) browser source. All 22 gifts stay visible in two
+  tall columns. This is independent from both existing overlay files.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portrait static gift overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --panel: rgba(20, 22, 28, .96);
+    --panel-lift: rgba(36, 39, 48, .98);
+    --help: #40d45a;
+    --harm: #ff4545;
+    --text: #ffffff;
+    --text-dim: #d5d8df;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  body {
+    padding: clamp(10px, 1vh, 20px);
+    color: var(--text);
+    font-family: Inter, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .overlay {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: clamp(8px, .7vh, 14px);
+  }
+
+  .header {
+    min-height: clamp(76px, 6.2vh, 118px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: clamp(12px, 1.2vh, 22px) clamp(16px, 2vw, 30px);
+    border: 2px solid rgba(255,255,255,.16);
+    border-radius: clamp(10px, 1vw, 18px);
+    background: rgba(14, 16, 21, .97);
+    box-shadow: 0 8px 24px rgba(0,0,0,.48);
+  }
+
+  .title {
+    font-family: Silkscreen, monospace;
+    font-size: clamp(25px, 3.1vh, 48px);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: .02em;
+    text-shadow: 0 2px 5px rgba(0,0,0,.65);
+  }
+
+  .legend {
+    display: flex;
+    align-items: center;
+    gap: clamp(18px, 2vw, 34px);
+    flex: 0 0 auto;
+    font-family: Silkscreen, monospace;
+    font-size: clamp(18px, 2vh, 31px);
+    font-weight: 700;
+  }
+
+  .legend span {
+    display: flex;
+    align-items: center;
+    gap: clamp(8px, 1vw, 14px);
+  }
+
+  .legend i {
+    width: clamp(24px, 2.5vh, 40px);
+    height: clamp(24px, 2.5vh, 40px);
+    display: block;
+    border-radius: 4px;
+    box-shadow: 0 0 0 3px rgba(255,255,255,.18), 0 3px 8px rgba(0,0,0,.45);
+  }
+
+  .legend .helps i { background: var(--help); }
+  .legend .hurts i { background: var(--harm); }
+
+  .grid {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(11, minmax(0, 1fr));
+    grid-auto-flow: column;
+    gap: clamp(6px, .55vh, 11px) clamp(8px, 1vw, 16px);
+  }
+
+  .card {
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: clamp(54px, 5.4vh, 86px) minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(11px, 1.2vw, 20px);
+    overflow: hidden;
+    padding: clamp(8px, .8vh, 14px) clamp(10px, 1.2vw, 18px);
+    border: 2px solid rgba(255,255,255,.1);
+    border-left: clamp(8px, .8vw, 13px) solid var(--harm);
+    border-radius: clamp(8px, .8vw, 14px);
+    background: var(--panel);
+    box-shadow: 0 5px 14px rgba(0,0,0,.38);
+  }
+
+  .card[data-kind="help"] {
+    border-left-color: var(--help);
+    background: linear-gradient(90deg, rgba(35, 72, 42, .98), var(--panel) 30%);
+  }
+
+  .icon,
+  .icon-fallback {
+    width: clamp(54px, 5.4vh, 86px);
+    height: clamp(54px, 5.4vh, 86px);
+  }
+
+  .icon {
+    object-fit: contain;
+    filter: drop-shadow(0 3px 6px rgba(0,0,0,.65));
+  }
+
+  .icon-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    background: var(--panel-lift);
+    font: clamp(9px, .8vh, 13px)/1.1 Silkscreen, monospace;
+    text-align: center;
+  }
+
+  .copy { min-width: 0; }
+
+  .giftname {
+    overflow: hidden;
+    color: var(--text);
+    font-family: Silkscreen, monospace;
+    font-size: clamp(18px, 1.75vh, 32px);
+    font-weight: 700;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-shadow: 0 2px 4px rgba(0,0,0,.7);
+  }
+
+  .blurb {
+    margin-top: clamp(5px, .55vh, 10px);
+    overflow: hidden;
+    color: var(--text-dim);
+    display: -webkit-box;
+    font-size: clamp(15px, 1.32vh, 25px);
+    font-weight: 700;
+    line-height: 1.12;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  /* This page is intentionally portrait-first, but remains usable in a short preview. */
+  @media (min-aspect-ratio: 1/1) {
+    .title { font-size: clamp(17px, 3.4vh, 30px); }
+    .legend { font-size: clamp(12px, 2.3vh, 19px); }
+    .legend i { width: 18px; height: 18px; }
+    .giftname { font-size: clamp(12px, 2.1vh, 19px); }
+    .blurb { font-size: clamp(10px, 1.55vh, 14px); -webkit-line-clamp: 2; }
+    .card { grid-template-columns: clamp(36px, 6vh, 54px) minmax(0, 1fr); }
+    .icon, .icon-fallback { width: clamp(36px, 6vh, 54px); height: clamp(36px, 6vh, 54px); }
+  }
+</style>
+</head>
+<body>
+<main class="overlay">
+  <header class="header">
+    <h1 class="title">GIFTS CONTROL THE GAME</h1>
+    <div class="legend" aria-label="Gift effect legend">
+      <span class="helps"><i></i>HELPS</span>
+      <span class="hurts"><i></i>HURTS</span>
+    </div>
+  </header>
+  <section class="grid" id="grid" aria-label="Gift effects"></section>
+</main>
+
+<script>
+const GIFTS = [
+  { name: 'Heart Me',            icon: 'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/composed.b326356a360b67b367c5cae58fe337b1.png~tplv-obj.webp', blurb: 'Gives me a golden apple for healing and absorption.', kind: 'help' },
+  { name: 'Flowers',             icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/697bf9450c55c2ee569c8e8b2cab7152~tplv-obj.webp', blurb: 'Gives Regeneration IV for 60 seconds to rapidly heal me.', kind: 'help' },
+  { name: 'Cello Romance',       icon: 'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/4756a2a4604d2cb5bb5b0639b259e9b5.png~tplv-obj.webp', blurb: 'Gives diamond armor, sword, pickaxe, 3 totems, 32 gapples, logs and 12 Eyes.', kind: 'help' },
+  { name: 'Swan',                icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/97a26919dbf6afe262c97e22a83f4bf1~tplv-obj.webp', blurb: 'Gives a Netherite kit, 5 totems, 64 gapples, logs, 8 beds and 12 Eyes.', kind: 'help' },
+  { name: 'Rose',                icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp', blurb: 'Drops primed TNT on me with only 3 seconds to escape.', kind: 'harm' },
+  { name: 'TikTok',              icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/802a21ae29f9fae5abe3693de9f874bd~tplv-obj.webp', blurb: 'Strikes me with lightning exactly where I am standing.', kind: 'harm' },
+  { name: 'GG',                  icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/3f02fa9594bd1495ff4e8aa5ae265eef~tplv-obj.webp', blurb: 'Places a cobweb on me, trapping me until I break free.', kind: 'harm' },
+  { name: 'Ice Cream Cone',      icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/968820bc85e274713c795a6aef3f7c67~tplv-obj.webp', blurb: 'Gives me nausea for 15 seconds and makes my screen spin.', kind: 'harm' },
+  { name: 'Finger Heart',        icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/a4c4dc437fd3a6632aba149769491f49.png~tplv-obj.webp', blurb: 'Gives Mining Fatigue III and Slowness II for 20 seconds.', kind: 'harm' },
+  { name: 'BFF Necklace',        icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/e033c3f28632e233bebac1668ff66a2f.png~tplv-obj.webp', blurb: 'Launches me upward and gives Resistance so the landing will not hurt.', kind: 'harm' },
+  { name: 'Perfume',             icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/20b8f61246c7b6032777bb81bf4ee055~tplv-obj.webp', blurb: 'Makes me levitate for 20 seconds, then drops me back down.', kind: 'harm' },
+  { name: 'Doughnut',            icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/4e7ad6bdf0a1d860c538f38026d4e812~tplv-obj.webp', blurb: 'Blinds me for 10 seconds and surrounds me with 6 hostile mobs.', kind: 'harm' },
+  { name: 'Paper Crane',         icon: 'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/0f158a08f7886189cdabf496e8a07c21~tplv-obj.webp', blurb: 'Teleports me 60–120 blocks off course in a random direction.', kind: 'harm' },
+  { name: 'Hat and Mustache',    icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/2f1e4f3f5c728ffbfa35705b480fdc92~tplv-obj.webp', blurb: 'Deletes all 9 hotbar slots; items stored in my backpack survive.', kind: 'harm' },
+  { name: 'Hand Heart',          icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/6cd022271dc4669d182cad856384870f~tplv-obj.webp', blurb: 'Drops me 12 blocks underground, then seals the opening with stone.', kind: 'harm' },
+  { name: 'Love You',            icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/134e51c00f46e01976399883ca4e4798~tplv-obj.webp', blurb: 'Deletes all armor plus every tool, weapon, shield and elytra I carry.', kind: 'harm' },
+  { name: 'Balloons',            icon: 'https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/c370d5c4ab6e5971b6b17de3eab6f6d4.png~tplv-obj.webp', blurb: 'Removes a 5×12×5 shaft beneath me, dropping me straight down.', kind: 'harm' },
+  { name: 'Corgi',               icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/148eef0884fdb12058d1c6897d1e02b9~tplv-obj.webp', blurb: 'Teleports me 150–400 blocks away in a random direction.', kind: 'harm' },
+  { name: 'Money Gun',           icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/e0589e95a2b41970f0f30f6202f5fce6~tplv-obj.webp', blurb: 'Deletes my entire inventory, including armor and offhand items.', kind: 'harm' },
+  { name: 'Train',               icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/4227ed71f2c494b554f9cbe2147d4899~tplv-obj.webp', blurb: 'Teleports me 120 blocks straight into the sky with no safe landing.', kind: 'harm' },
+  { name: 'Galaxy',              icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/79a02148079526539f7599150da9fd28.png~tplv-obj.webp', blurb: 'Spawns a Warden beside me and gives Darkness for 20 seconds.', kind: 'harm' },
+  { name: 'Sports Car',          icon: 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/e7ce188da898772f18aaffe49a7bd7db~tplv-obj.webp', blurb: 'Protects and launches me, then surrounds me with lightning and 20 Withers.', kind: 'harm' },
+];
+
+const grid = document.getElementById('grid');
+
+for (const gift of GIFTS) {
+  const card = document.createElement('article');
+  card.className = 'card';
+  card.dataset.kind = gift.kind;
+
+  const icon = document.createElement('img');
+  icon.className = 'icon';
+  icon.src = gift.icon;
+  icon.alt = '';
+  icon.addEventListener('error', () => {
+    const fallback = document.createElement('div');
+    fallback.className = 'icon-fallback';
+    fallback.textContent = 'NO ICON';
+    icon.replaceWith(fallback);
+  }, { once: true });
+
+  const copy = document.createElement('div');
+  copy.className = 'copy';
+
+  const name = document.createElement('div');
+  name.className = 'giftname';
+  name.textContent = gift.name;
+
+  const blurb = document.createElement('div');
+  blurb.className = 'blurb';
+  blurb.textContent = gift.blurb;
+
+  copy.append(name, blurb);
+  card.append(icon, copy);
+  grid.append(card);
+}
+</script>
+</body>
+</html>

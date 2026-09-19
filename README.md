@@ -255,7 +255,7 @@ Flags that combine with any mode: `--dry` logs commands instead of sending them,
 overrides `TIKTOK_USER` for live mode. `--help` prints the same summary as this table. An
 unrecognised flag is an error, not a silent fall-through to live mode.
 
-`--no-like-creepers` starts the bridge with like-triggered creepers disabled. During a
+`--no-likes` starts the bridge with like-triggered creepers disabled. During a
 live run, type `likes off`, `likes on`, or `likes status` directly into the bridge
 terminal to control them without restarting the stream. Like totals continue updating
 while the effect is off, so turning it on later does not release a stored backlog.
@@ -343,7 +343,7 @@ letting the show fall minutes behind.
 
 For likes, the threshold is the only automatic governor. The shipped value is 100, which
 can be extremely aggressive in a busy room or when viewers use autoclickers. Start a
-stream with `--no-like-creepers`, or type `likes off` in the live bridge terminal, to
+stream with `--no-likes`, or type `likes off` in the live bridge terminal, to
 keep processing gifts and follows while suppressing only the like creepers. `likes on`
 re-enables them for future thresholds and `likes status` reports the current state.
 
@@ -371,11 +371,22 @@ checks whatever is in there along with every gift.
 
 ## The gift overlay
 
-A viewer cannot send the right gift if they do not know what it does.
-[`tiktoklive-overlay/gift-overlay.html`](tiktoklive-overlay/gift-overlay.html) is a
-single self-contained page that rotates through the mapped gifts, showing each one's real
-TikTok icon, the effect name, and a line on what happens. Help gifts are green, sabotage
-red, and a verdict strip says which so the two cannot be confused at phone size.
+A viewer cannot send the right gift if they do not know what it does. This repository
+includes two self-contained overlay choices:
+
+| Overlay | Layout |
+|---|---|
+| [`gift-overlay.html`](tiktoklive-overlay/gift-overlay.html) | Two gift cards at a time, rotating through the full list. |
+| [`gift-overlay-v2.html`](tiktoklive-overlay/gift-overlay-v2.html) | Two extra-large rotating cards with detailed descriptions and a six-second reading time. |
+| [`gift-overlay-v3.html`](tiktoklive-overlay/gift-overlay-v3.html) | Full-width V2 layout at the same height, with even larger description text. |
+| [`gift-overlay-v4.html`](tiktoklive-overlay/gift-overlay-v4.html) | Full-width, thinner 2.74:1 layout with a prominent page counter and 12-second pages, sized for the top of a 9:16 stream. |
+| [`static-gift-overlay.html`](tiktoklive-overlay/static-gift-overlay.html) | Every gift together on one fixed screen, with no rotation or scrolling. |
+| [`static-gift-overlay-v2.html`](tiktoklive-overlay/static-gift-overlay-v2.html) | Portrait-first two-column layout for a full 9:16 TikTok LIVE source. |
+
+Both show each gift's real TikTok icon and a short explanation. The rotating overlay also
+shows the effect name, while the static overlay uses the extra room for larger gift names
+and descriptions. Help gifts are green and sabotage gifts are red, so viewers can tell
+them apart quickly.
 
 The effect names on the cards are the same words the bridge prints in chat when a gift
 lands, so a viewer reads `FLOOR GONE` on the overlay and then sees `FLOOR GONE` in chat a
@@ -386,19 +397,26 @@ cd tiktoklive-overlay
 npx serve .
 ```
 
-Add it in LIVE Studio as **Add source -> Link**, pointing at
-`http://127.0.0.1:3000/gift-overlay.html`. Use the `127.0.0.1` form: LIVE Studio has
-rejected the `localhost` spelling of the same address. Include the filename, since `/`
-serves a directory listing rather than the overlay. If that address is refused as well,
-use your machine's LAN address on the same port, or host the file somewhere and point at
-that. The background is transparent, so it composites over the game.
+Add it in LIVE Studio as **Add source -> Link**, using either
+`http://127.0.0.1:3000/gift-overlay.html` or
+`http://127.0.0.1:3000/gift-overlay-v2.html` for the larger rotating version, or
+`http://127.0.0.1:3000/gift-overlay-v3.html` for the full-width rotating version, or
+`http://127.0.0.1:3000/gift-overlay-v4.html` for the wide, thinner rotating version, or
+`http://127.0.0.1:3000/static-gift-overlay.html` for the original static version. For the portrait version, use
+`http://127.0.0.1:3000/static-gift-overlay-v2.html` and size the Link source to 9:16
+(ideally 1080 x 1920). Use the `127.0.0.1` form: LIVE Studio
+has rejected the `localhost` spelling of the same address. Include the filename, since
+`/` serves a directory listing rather than an overlay. If that address is refused as
+well, use your machine's LAN address on the same port, or host the files somewhere and
+point at that. Both backgrounds are transparent, so they composite over the game.
 
 **Leave that terminal open for the whole stream.** It is the web server; close it and the
 source goes blank.
 
-**The gift list in that file is one streamer's, and is meant to be replaced.** Gift
+**The gift lists in those files are one streamer's, and are meant to be replaced.** Gift
 availability and prices differ by region and TikTok retires gifts, so edit the `GIFTS`
-array to match your own map and your own panel.
+array in the overlay being used to match your own map and your own panel. If both
+overlays are offered, keep both arrays in sync.
 [tiktoklive-overlay/README.md](tiktoklive-overlay/README.md) explains every field and
 where the icon URLs come from.
 

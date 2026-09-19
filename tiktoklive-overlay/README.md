@@ -1,10 +1,19 @@
-# Gift overlay
+# Gift overlays
 
-`gift-overlay.html` is a single self-contained page for TikTok LIVE Studio. It shows one
-gift at a time - the real TikTok icon, the effect name, and one line on what happens -
-and rotates every 4.5 seconds. Green means the gift helps the run, red means it hurts,
-and a verdict strip spells it out so nobody has to work it out from the colour alone at
-phone size.
+This folder contains two self-contained pages for TikTok LIVE Studio:
+
+| File | Layout |
+|---|---|
+| `gift-overlay.html` | Two gifts per page, rotating every 4.5 seconds. |
+| `gift-overlay-v2.html` | Two much larger gifts per page, detailed descriptions, rotating every 6 seconds. |
+| `gift-overlay-v3.html` | Same two-card height as V2, full source width, and larger descriptions. |
+| `gift-overlay-v4.html` | Full-width V3 cards reduced to 65% viewport height for a wide 2.74:1 overlay with a prominent page counter, rotating every 12 seconds. |
+| `static-gift-overlay.html` | Every gift on one fixed screen with no rotation or scrolling. |
+| `static-gift-overlay-v2.html` | Every gift in two large columns designed for a 9:16 portrait source. |
+
+Both use the real TikTok icons and show a short explanation. The rotating overlay also
+shows the effect title; the static overlay keeps only the gift name and description so
+they can be larger. Green means the gift helps the run and red means it hurts.
 
 The effect names are the same words the bridge prints in chat when a gift lands, so a
 viewer who reads `FLOOR GONE` on the overlay sees `FLOOR GONE` in chat a second after
@@ -17,8 +26,18 @@ cd tiktoklive-overlay
 npx serve .
 ```
 
-Then in LIVE Studio: **Add source -> Link**, and paste
-`http://127.0.0.1:3000/gift-overlay.html`.
+Then in LIVE Studio, choose **Add source -> Link** and paste either:
+
+- `http://127.0.0.1:3000/gift-overlay.html` for the rotating overlay.
+- `http://127.0.0.1:3000/gift-overlay-v2.html` for the larger, more descriptive rotating overlay.
+- `http://127.0.0.1:3000/gift-overlay-v3.html` for the full-width V2 layout with larger descriptions.
+- `http://127.0.0.1:3000/gift-overlay-v4.html` for the wide, thinner two-card layout.
+- `http://127.0.0.1:3000/static-gift-overlay.html` for the all-at-once overlay.
+- `http://127.0.0.1:3000/static-gift-overlay-v2.html` for the portrait all-at-once overlay.
+
+For `static-gift-overlay-v2.html`, set the Link source resolution to **1080 x 1920** and
+fit it to the portrait canvas. A landscape browser source squeezed into the top of a
+portrait stream makes 22 descriptions unreadably small regardless of their CSS size.
 
 - Use **`127.0.0.1`**, not `localhost`. LIVE Studio has rejected the `localhost` form.
 - Include the filename. `/` serves a directory listing, not the overlay. `serve` then
@@ -32,29 +51,31 @@ Then in LIVE Studio: **Add source -> Link**, and paste
 **Leave that terminal open for the whole stream.** It is the web server. Close it and the
 source goes blank.
 
-The background is transparent, so the card composites straight over the game. It anchors
-bottom left; change `align-items` / `justify-content` on `body` in the CSS to move it.
+Both page backgrounds are transparent, so they composite over the game. The rotating
+overlay anchors at the bottom left. The static overlay is a centered board designed to
+fit all listed gifts in a 16:9 browser source.
 
 ## Editing the gift list
 
-**The list in the file is one streamer's, for one region, and is meant to be replaced.**
-Gift availability and prices differ by region, and TikTok retires gifts, so treat these
-ten as a worked example rather than a starting point you can ship as-is. Keep the list to
-about ten: past that nobody reads it. Gifts you leave out still work, they are just not
-advertised.
+**The lists in these files are one streamer's, for one region, and are meant to be
+replaced.** Gift availability and prices differ by region, and TikTok retires gifts. Edit
+the `GIFTS` array in the overlay being used. If both overlays are used, make the same
+change in both arrays so they do not advertise different effects. Gifts left out of an
+overlay still work; they are simply not advertised there.
 
 Each entry in the `GIFTS` array:
 
 | Field | What it is |
 |---|---|
 | `name` | The gift's exact name as it appears in the TikTok gift panel. |
-| `coins` | Its price. **Not drawn on the card.** It is kept so the array can be sorted by cost and so prices are easy to show later. |
+| `coins` | Its price. It is kept so the arrays can be sorted by cost, but is not drawn on either overlay. |
 | `icon` | URL of the gift's icon. A missing or broken one shows a `NO ICON` placeholder rather than an empty gap. |
 | `effect` | The banner the bridge prints for that gift, e.g. `WEBBED`. Copy it exactly out of `gift-map.ts`, or the overlay and the chat will disagree. |
 | `blurb` | One short line on what actually happens, in your voice. Viewers notice when it lies. |
 | `kind` | `'harm'` or `'help'`. Drives the border, the effect colour, the verdict strip and the timer bar, so getting it wrong tells viewers the opposite of the truth. |
 
-`ROTATE_MS` just above the array sets the dwell time per card.
+In `gift-overlay.html`, `ROTATE_MS` just above the array sets the dwell time per page.
+The static overlay has no timer.
 
 Harm and help entries are interleaved at render time, so the rotation alternates instead
 of running seven punishments before the first reward.

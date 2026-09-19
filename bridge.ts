@@ -30,7 +30,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { EULER_API_KEY, RCON_PASSWORD, TIKTOK_USER, envSourceHint } from './env';
 import { SingleplayerClient, SINGLEPLAYER_ENDPOINT } from './singleplayer-client';
-import { ASSUMED_COINS, GIFTS, PRICED, fallback } from './gift-map';
+import { ASSUMED_COINS, GIFT_ALIASES, GIFTS, PRICED, fallback } from './gift-map';
 import {
   MC_PLAYER,
   at,
@@ -68,7 +68,7 @@ const TT_BACKOFF_MAX = 300_000;  // sign requests are metered, so back off hard
 const DRY = process.argv.includes('--dry');
 const VERIFY = process.argv.includes('--verify');
 const SINGLEPLAYER = process.argv.includes('--singleplayer');
-const NO_LIKE_CREEPERS = process.argv.includes('--no-like-creepers');
+const NO_LIKES = process.argv.includes('--no-likes');
 const TRANSPORT = SINGLEPLAYER ? 'singleplayer' : 'rcon';
 
 // nicknames are user-controlled and go straight into a server command.
@@ -96,8 +96,14 @@ const shortPath = (p: string) => {
 const pickVariant = (variants: PricedVariant[], unitCoins: number) =>
   [...variants].sort((a, b) => b.minCoins - a.minCoins).find((v) => unitCoins >= v.minCoins);
 
+/** Normalize a live/catalog gift name and apply known TikTok rename aliases. */
+export function giftKey(giftName: string): string {
+  const normalized = key(giftName);
+  return GIFT_ALIASES[normalized] ?? normalized;
+}
+
 export function resolve(giftName: string, repeatCount: number, diamonds: number): string[] {
-  const k = key(giftName);
+  const k = giftKey(giftName);
   const n = Math.max(repeatCount, 1);
 
   const variants = PRICED[k];
@@ -113,7 +119,7 @@ export function resolve(giftName: string, repeatCount: number, diamonds: number)
 
 /** How resolve() decided, for the console line. Kept next to resolve so they cannot drift. */
 function resolutionLabel(giftName: string, repeatCount: number, diamonds: number): string {
-  const k = key(giftName);
+  const k = giftKey(giftName);
   const n = Math.max(repeatCount, 1);
   const batch = n > 1 ? ` each x${n}` : '';
   const variants = PRICED[k];
@@ -472,7 +478,7 @@ function handleFollow(data: any, tag = 'follow') {
 
 // There is deliberately no hidden rate limit: when enabled, every crossed threshold is
 // honored, including several thresholds carried by one batched TikTok event. A streamer
-// can disable the effect for a whole run with --no-like-creepers or toggle it live from
+// can disable the effect for a whole run with --no-likes or toggle it live from
 // the terminal with `likes off` / `likes on`. Counting continues while it is disabled,
 // so turning it back on never releases a backlog of creepers.
 export const LIKES_PER_CREEPER = 100;
@@ -575,7 +581,7 @@ export function likeEffectCommands(decision: LikeDecision, enabled: boolean): st
 
 let likeTotal: number | null = null;
 let likeTotalWarned = false;
-let likeCreepersEnabled = !NO_LIKE_CREEPERS;
+let likeCreepersEnabled = !NO_LIKES;
 
 export type LikeControl = 'on' | 'off' | 'status';
 
@@ -1253,7 +1259,7 @@ async function keysMode(catalogPath: string) {
   // the map cannot tell which gift arrived.
   const byKey = new Map<string, { names: Set<string>; coins: Map<number, string> }>();
   for (const g of gifts) {
-    const k = key(g.name);
+    const k = giftKey(g.name);
     if (!byKey.has(k)) byKey.set(k, { names: new Set(), coins: new Map() });
     const e = byKey.get(k)!;
     e.names.add(g.name);
@@ -1395,7 +1401,7 @@ const argAfter = (flag: string) => {
 // silently ran the wrong mode with no clue that it had. Both stop here now.
 const KNOWN_FLAGS = new Set([
   '--test', '--spy', '--replay', '--verify', '--keys', '--catalog',
-  '--dry', '--singleplayer', '--no-like-creepers', '--user', '--out', '--region', '--help', '-h',
+  '--dry', '--singleplayer', '--no-likes', '--user', '--out', '--region', '--help', '-h',
 ]);
 
 function usage() {
@@ -1414,7 +1420,7 @@ function usage() {
 Flags:
   --dry            Log commands instead of sending them.
   --singleplayer   Send to the local Fabric companion mod instead of RCON.
-  --no-like-creepers
+  --no-likes
                    Start with like-triggered creepers disabled. Toggle live by typing
                    likes off, likes on, or likes status in the bridge terminal.
   --user <name>    Override TIKTOK_USER for live mode.

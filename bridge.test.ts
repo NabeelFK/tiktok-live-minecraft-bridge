@@ -26,6 +26,7 @@ import {
   catalogAgeDays,
   catalogAge,
   decideLike,
+  giftKey,
   likeEffectCommands,
   likeCreeperCommands,
   likeThresholdsCrossed,
@@ -103,6 +104,11 @@ test('key() collapses the spellings a gift name arrives in', () => {
   assert.equal(key(''), '');
 });
 
+test('giftKey() accepts TikTok renames without changing the canonical map key', () => {
+  assert.equal(giftKey('BFF Necklace'), 'friendshipnecklace');
+  assert.equal(giftKey('Friendship Necklace'), 'friendshipnecklace');
+});
+
 test('key() keeps singular and plural APART, which is how BURIED was dead for weeks', () => {
   // The CA gift is "Hand Heart", singular. The map said `handhearts`, so the effect
   // could never fire and the real gift fell through to the hotbar wipe instead.
@@ -143,6 +149,12 @@ test('resolve() maps a known gift, whatever case it arrives in', () => {
   assert.equal(bannerOf(resolve('rose', 1, 1)), 'TNT');
   assert.equal(bannerOf(resolve('R O S E', 1, 1)), 'TNT');
   assert.equal(resolve('Rose', 1, 1).length, 2, 'banner plus one summon');
+});
+
+test('BFF Necklace launches instead of falling through to Finger Heart sludge', () => {
+  assert.equal(bannerOf(resolve('BFF Necklace', 1, 10)), 'LAUNCHED');
+  assert.equal(bannerOf(resolve('Friendship Necklace', 1, 10)), 'LAUNCHED');
+  assert.notEqual(bannerOf(resolve('BFF Necklace', 1, 10)), 'SLUDGE');
 });
 
 test('resolve() scales a streak on the gifts that can be repeated', () => {

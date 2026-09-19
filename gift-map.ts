@@ -52,6 +52,14 @@ export const ASSUMED_COINS: Record<string, number> = {
   train: 899, galaxy: 1000, sportscar: 7000,
 };
 
+// TikTok renamed this gift in live events before the saved CA catalog caught up.
+// Keep the catalog-era name as the canonical map key while accepting the name the
+// websocket actually sends. --keys canonicalizes through this table too, so either
+// catalog spelling still checks the same 10-coin action.
+export const GIFT_ALIASES: Record<string, string> = {
+  bffnecklace: 'friendshipnecklace',
+};
+
 export const GIFTS: Record<string, Action> = {
 
   // ═══════════════ 1 COIN: ANNOYANCE. Costs seconds. ═══════════════
