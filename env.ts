@@ -59,8 +59,11 @@ export const TIKTOK_USER = read('TIKTOK_USER');
 /** rcon.password from the server's server.properties. */
 export const RCON_PASSWORD = read('RCON_PASSWORD');
 
-/** Euler Stream signing key. Optional: blank means free community rate limits. */
+/** Euler Stream signing key. Used only by the original Euler provider. */
 export const EULER_API_KEY = read('EULER_API_KEY');
+
+/** TikTok event source. `euler` preserves the original connector; `piratetok` needs no key. */
+export const TIKTOK_PROVIDER = read('TIKTOK_PROVIDER');
 
 /**
  * One line for an error message saying where configuration was read from. A missing

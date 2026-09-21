@@ -18,7 +18,7 @@ The default Paper/RCON route runs three processes on one machine:
 ```
    TikTok LIVE room
           |
-          |  websocket, handshake signed by Euler Stream
+          |  websocket through the selected TikTok provider
           v
    bridge.ts  (Node, run with tsx)          <- this repo
           |
@@ -179,16 +179,39 @@ npx tsx bridge.ts
 
 Do not pass `--singleplayer` for this route.
 
+### TikTok provider
+
+Live events can come from either connector. Both feed the exact same gift, follow and
+like handlers; choosing a provider does not change any Minecraft effects.
+
+| Provider | Cost/key | Select it with |
+|---|---|---|
+| `piratetok` | Free and keyless; direct, unofficial connection | `TIKTOK_PROVIDER=piratetok` or `--provider piratetok` |
+| `euler` | Original `tiktok-live-connector` route; Euler controls plan access | `TIKTOK_PROVIDER=euler` or `--provider euler` |
+
+Existing `.env` files without `TIKTOK_PROVIDER` continue to use Euler for backwards
+compatibility. New installs copying `.env.example` start with PirateTok. PirateTok is a
+young reverse-engineered connector, so Euler remains available as a fallback.
+
+Examples:
+
+```sh
+npx tsx bridge.ts --provider piratetok
+npx tsx bridge.ts --singleplayer --provider piratetok
+npx tsx bridge.ts --provider euler
+```
+
 ### Environment configuration
 
-Four variables, all documented in `.env.example`:
+Five variables, all documented in `.env.example`:
 
 | Variable | What | Needed by |
 |---|---|---|
 | `MC_PLAYER` | Your exact in-game name, case sensitive | everything that sends commands |
 | `TIKTOK_USER` | Your TikTok handle, no `@` | live mode |
+| `TIKTOK_PROVIDER` | `piratetok` (free/keyless) or `euler` (original route) | live mode, `--spy` |
 | `RCON_PASSWORD` | The `rcon.password` from `server.properties` | Paper/RCON only; not `--singleplayer` |
-| `EULER_API_KEY` | Euler Stream signing key. Optional, blank works | live mode, `--spy` |
+| `EULER_API_KEY` | Euler Stream key | only when the provider is `euler` |
 
 The bridge loads `.env` from the repo root itself, on startup, in every mode. Filling
 in that file is the whole configuration step: no flag to pass, and it is still there in
@@ -220,8 +243,11 @@ npm scripts for the same things, plus the two checks that need nothing at all:
 | `npm run sandbox` | `--test`, the interactive one where you type gift names. |
 | `npm run sandbox-singleplayer` | `--test --singleplayer`, against a loaded private Fabric world. |
 | `npm run live` | Live mode. |
+| `npm run live-free` | Live mode through free, keyless PirateTok. |
 | `npm run live-singleplayer` | Live mode in a loaded private Fabric world. |
+| `npm run live-singleplayer-free` | Free PirateTok live mode in a loaded private Fabric world. |
 | `npm run spy <handle>` | `--spy`. |
+| `npm run spy-free -- <handle>` | `--spy` through PirateTok. |
 | `npm run replay <file>` | `--replay`. |
 
 The npm scripts are conveniences. Every mode can still be run directly with
@@ -240,7 +266,7 @@ The npm scripts are conveniences. Every mode can still be run directly with
 | `--replay <file.jsonl>` | server | Feeds a recorded `.jsonl` back through the exact handler live mode uses. This is how the live code path gets tested without being live. Pair with `--dry` and it needs no server, though it still needs `MC_PLAYER`, since the commands it builds name the player. |
 | `--verify` | server | Syntax-checks every command in the map against your actual server version and runs none of them. Each command is wrapped in a selector that matches nothing, so the server parses it in full and then declines. Delayed stages are included. Exit code 1 on any failure. |
 | `--keys [catalog.json]` | nothing | Checks the map against a region's gift catalog: keys no gift produces, two gifts colliding on one key, and prices that have drifted. Offline, no server, deterministic. Warns when the catalog is more than about a month old. Exit code 1 on any failure. |
-| `--catalog [user]` | TikTok | Connects to a live room, reads the gift panel that room actually offers, and writes it over the catalog file `--keys` reads. Defaults to `TIKTOK_USER`, so pointed at your own stream it captures exactly what your viewers see. Prints what changed since the last capture: gifts added, gifts gone, prices moved. `--out <path>` and `--region <code>` override the destination and the stamped region. |
+| `--catalog [user]` | TikTok + Euler | Connects through the original Euler-backed connector, reads the gift panel that room actually offers, and writes it over the catalog file `--keys` reads. PirateTok currently handles live events but does not expose this catalog call. Defaults to `TIKTOK_USER`, so pointed at your own stream it captures exactly what viewers see. |
 | *(no flag)* | both | Live mode. |
 
 Transport flag:
@@ -251,8 +277,9 @@ Transport flag:
 | `--singleplayer` | Loaded Fabric single-player world through the companion mod at `127.0.0.1:25576`. |
 
 Flags that combine with any mode: `--dry` logs commands instead of sending them,
-`--singleplayer` uses the local Fabric companion mod instead of RCON, and `--user <name>`
-overrides `TIKTOK_USER` for live mode. `--help` prints the same summary as this table. An
+`--singleplayer` uses the local Fabric companion mod instead of RCON, `--provider
+piratetok|euler` selects the TikTok event source, and `--user <name>` overrides
+`TIKTOK_USER` for live mode. `--help` prints the same summary as this table. An
 unrecognised flag is an error, not a silent fall-through to live mode.
 
 `--no-likes` starts the bridge with like-triggered creepers disabled. During a
@@ -424,18 +451,21 @@ where the icon URLs come from.
 
 ## Honest limitations
 
-**This depends on an unofficial, reverse-engineered client.** TikTok publishes no API for
-LIVE gift events. [`tiktok-live-connector`](https://github.com/zerodytrash/TikTok-Live-Connector)
-works by speaking TikTok's internal webcast protocol. TikTok can change that protocol
-whenever it likes, without warning and without any obligation to anyone. When it does,
-this bridge stops receiving gifts until the library catches up, and payload field paths
-(`data.gift.diamondCount` and friends) can move under you between library versions.
+**Both providers are unofficial and reverse-engineered.** TikTok publishes no general
+public API for LIVE gift events. The free option,
+[`piratetok-live-js`](https://github.com/PirateTok/live-js), connects without an API key
+or signing service. The original option,
+[`tiktok-live-connector`](https://github.com/zerodytrash/TikTok-Live-Connector), uses
+[Euler Stream](https://www.eulerstream.com/) for its connection handshake. TikTok can
+change the internal webcast protocol whenever it likes; either connector can stop
+working until its maintainers catch up, and payload fields such as
+`data.gift.diamondCount` can move between versions.
 
-**It also depends on a third-party signing service.** The webcast handshake has to be
-signed, and this project signs it through [Euler Stream](https://www.eulerstream.com/),
-which is an independent commercial service with its own rate limits, pricing and uptime.
-If Euler Stream is down, rate-limits you, or moves the free tier behind a paywall, live
-mode stops working and there is nothing in this repo that can fix it.
+**Free does not mean guaranteed.** PirateTok removes the monthly API plan and external
+signing dependency, but it is a young project with a small user base. Euler is more
+established but is an independent commercial service with its own plan access, rate
+limits, pricing and uptime. Keeping both providers is the fallback; it is not a promise
+that at least one will always work.
 
 Both of those can break with no notice, and if you are reading this a long time after it
 was written, assume at least one of them has changed. Nothing here is TikTok-endorsed and
@@ -443,10 +473,9 @@ nothing here is guaranteed to keep working.
 
 Smaller things worth knowing:
 
-- Dependencies are pinned to exact versions on purpose. `tiktok-live-connector` has had
-  breaking changes between releases and its npm version numbers do not line up with the
-  API generations its documentation describes, so a `^` range is a live grenade. Upgrade
-  deliberately, then re-run `--spy` and check the field paths still hold.
+- Both connector dependencies are pinned to exact versions on purpose. Upgrade either
+  deliberately, then run `--spy` through that provider and confirm gift, follow and like
+  field paths still match before trusting it on stream.
 - Gift catalogs are per region and dated, and gifts get retired. Four of this map's 22
   gifts were retired out from under it in three months. `--catalog` is the fix, the coin
   tier fallback is the safety net, and `--keys` now warns when the file is old.
@@ -480,6 +509,19 @@ rather than trusting this paragraph, or any blog post, on a topic TikTok changes
 
 You can develop against all of this without being eligible: `--test` needs no TikTok
 account at all, and `--spy` watches somebody else's live stream.
+
+## Credits
+
+TikTok LIVE connectivity is provided by these independent open-source projects:
+
+- [PirateTok/live-js](https://github.com/PirateTok/live-js) (`piratetok-live-js`,
+  0BSD) powers the free, keyless provider.
+- [zerodytrash/TikTok-Live-Connector](https://github.com/zerodytrash/TikTok-Live-Connector)
+  (`tiktok-live-connector`, AGPL-3.0-only) powers the original Euler-backed provider.
+
+[Euler Stream](https://www.eulerstream.com/) provides the external signing service used
+by the original provider. These projects and services are not affiliated with this
+repository, and their packages remain under their own licenses.
 
 ## License
 

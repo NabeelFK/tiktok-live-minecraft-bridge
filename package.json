@@ -16,12 +16,16 @@
     "sandbox": "tsx bridge.ts --test",
     "sandbox-singleplayer": "tsx bridge.ts --test --singleplayer",
     "spy": "tsx bridge.ts --spy",
+    "spy-free": "tsx bridge.ts --provider piratetok --spy",
     "replay": "tsx bridge.ts --replay",
     "live": "tsx bridge.ts",
-    "live-singleplayer": "tsx bridge.ts --singleplayer"
+    "live-free": "tsx bridge.ts --provider piratetok",
+    "live-singleplayer": "tsx bridge.ts --singleplayer",
+    "live-singleplayer-free": "tsx bridge.ts --singleplayer --provider piratetok"
   },
   "dependencies": {
     "dotenv": "17.4.2",
+    "piratetok-live-js": "0.1.5",
     "rcon-client": "4.2.5",
     "tiktok-live-connector": "2.4.4"
   },

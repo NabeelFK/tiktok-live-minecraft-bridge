@@ -12,9 +12,11 @@
  * Flags (any mode):
  *   --dry            Log commands instead of sending them. Works with --replay to test with no server.
  *   --user <name>    Override TIKTOK_USER for live mode.
+ *   --provider <p>   TikTok source: piratetok (free/keyless) or euler (original).
  *
  * Configuration comes from the environment - MC_PLAYER, TIKTOK_USER, RCON_PASSWORD and
- * EULER_API_KEY. Copy .env.example and fill it in; docs/SETUP.md is the walkthrough.
+ * TIKTOK_PROVIDER and EULER_API_KEY. Copy .env.example and fill it in;
+ * docs/SETUP.md is the walkthrough.
  *
  * Gifts, follows and likes all land here. Likes are counted from the room's running
  * total and every LIKES_PER_CREEPER of them spawns a creeper; see the likes section.
@@ -28,7 +30,7 @@ import { Rcon } from 'rcon-client';
 import readline from 'node:readline';
 import fs from 'node:fs';
 import path from 'node:path';
-import { EULER_API_KEY, RCON_PASSWORD, TIKTOK_USER, envSourceHint } from './env';
+import { EULER_API_KEY, RCON_PASSWORD, TIKTOK_PROVIDER, TIKTOK_USER, envSourceHint } from './env';
 import { SingleplayerClient, SINGLEPLAYER_ENDPOINT } from './singleplayer-client';
 import { ASSUMED_COINS, GIFT_ALIASES, GIFTS, PRICED, fallback } from './gift-map';
 import {
@@ -42,8 +44,8 @@ import {
 } from './gift-helpers';
 
 // ---------- config ----------
-// Nothing identifying lives in this file. The four things that are yours - your
-// TikTok handle, your in-game name, your RCON password and your Euler Stream key -
+// Nothing identifying lives in this file. The things that are yours - your TikTok
+// handle, in-game name, RCON password, provider choice and optional Euler Stream key -
 // come from env.ts, which reads them from .env and from the shell environment.
 // See .env.example for the list and docs/SETUP.md for how to fill it in.
 //
@@ -70,6 +72,16 @@ const VERIFY = process.argv.includes('--verify');
 const SINGLEPLAYER = process.argv.includes('--singleplayer');
 const NO_LIKES = process.argv.includes('--no-likes');
 const TRANSPORT = SINGLEPLAYER ? 'singleplayer' : 'rcon';
+
+export type TikTokProvider = 'euler' | 'piratetok';
+
+/** Parse the public provider setting in one place so flags, env and tests agree. */
+export function normalizeTikTokProvider(value?: string): TikTokProvider {
+  const provider = (value || 'euler').trim().toLowerCase();
+  if (provider === 'euler') return 'euler';
+  if (provider === 'piratetok' || provider === 'free') return 'piratetok';
+  throw new Error(`unknown TikTok provider "${value}"; use piratetok or euler`);
+}
 
 // nicknames are user-controlled and go straight into a server command.
 // strip anything that isn't safe to interpolate. same for gift names off the wire.
@@ -768,10 +780,8 @@ async function testMode() {
 // Connect to any live streamer, dump gift payloads, and record them to a .jsonl
 // you can feed back through --replay later.
 
-async function spyMode(username: string) {
+async function spyMode(username: string, provider: TikTokProvider) {
   if (!username) throw new Error('usage: --spy <username>');
-  const { TikTokLiveConnection, WebcastEvent, ControlEvent, SignConfig } = await import('tiktok-live-connector');
-  if (EULER_API_KEY) SignConfig.apiKey = EULER_API_KEY;
 
   const out = path.join(process.cwd(), `spy-${username}-${Date.now()}.jsonl`);
   const sink = fs.createWriteStream(out, { flags: 'a' });
@@ -782,22 +792,21 @@ async function spyMode(username: string) {
 
   const jsonl = (o: any) => JSON.stringify(o, (_k, v) => (typeof v === 'bigint' ? v.toString() : v)) + '\n';
 
-  const tiktok = new TikTokLiveConnection(username, { enableExtendedGiftInfo: true });
-  tiktok.on(WebcastEvent.GIFT, (data: any) => {
+  const gift = (data: any) => {
     console.log('--- raw gift payload ---');
     console.dir(data, { depth: 3 });
     sink.write(jsonl({ __event: 'gift', ...data }));
-  });
-  tiktok.on(WebcastEvent.FOLLOW, (data: any) => {
+  };
+  const follow = (data: any) => {
     console.log('--- raw follow payload ---');
     console.dir(data, { depth: 3 });
     sink.write(jsonl({ __event: 'follow', ...data }));
-  });
+  };
   // Likes are the highest-volume event on the wire by a wide margin, so the full dump
   // is printed once - that is all you need to pin the field paths - and every event
   // after it is one line. All of them are still written to the recording.
   let likesSeen = 0;
-  tiktok.on(WebcastEvent.LIKE, (data: any) => {
+  const like = (data: any) => {
     likesSeen++;
     if (likesSeen === 1) {
       console.log('--- raw like payload (printed once, the rest are one line each) ---');
@@ -806,11 +815,32 @@ async function spyMode(username: string) {
       console.log(`[spy] like +${data?.count} total ${data?.total} (${likesSeen} like events so far)`);
     }
     sink.write(jsonl({ __event: 'like', ...data }));
-  });
-  tiktok.on(ControlEvent.ERROR, (e: any) => console.error('[spy] error:', e?.message ?? e));
+  };
+
+  if (provider === 'piratetok') {
+    const { TikTokLiveClient, EventType } = await import('piratetok-live-js');
+    const tiktok = new TikTokLiveClient(username);
+    tiktok.on(EventType.gift, gift);
+    tiktok.on(EventType.follow, follow);
+    tiktok.on(EventType.like, like);
+    tiktok.on(EventType.connected, (state: any) => {
+      console.log(`[spy] watching @${username} through PirateTok, roomId ${state?.roomId}. Waiting for gifts.`);
+    });
+    tiktok.on('error', (e: any) => console.error('[spy] PirateTok error:', e?.message ?? e));
+    await tiktok.connect();
+    return;
+  }
+
+  const { TikTokLiveConnection, WebcastEvent, ControlEvent, SignConfig } = await import('tiktok-live-connector');
+  if (EULER_API_KEY) SignConfig.apiKey = EULER_API_KEY;
+  const tiktok = new TikTokLiveConnection(username, { enableExtendedGiftInfo: true });
+  tiktok.on(WebcastEvent.GIFT, gift);
+  tiktok.on(WebcastEvent.FOLLOW, follow);
+  tiktok.on(WebcastEvent.LIKE, like);
+  tiktok.on(ControlEvent.ERROR, (e: any) => console.error('[spy] Euler error:', e?.message ?? e));
 
   const state = await tiktok.connect();
-  console.log(`[spy] watching @${username}, roomId ${state.roomId}. Waiting for gifts.`);
+  console.log(`[spy] watching @${username} through Euler, roomId ${state.roomId}. Waiting for gifts.`);
 }
 
 // ---------- mode: --replay <file.jsonl> ----------
@@ -854,26 +884,57 @@ async function replayMode(file: string) {
 
 let ttAttempt = 0;
 
-async function liveMode(username: string) {
+async function livePirateTokMode(username: string) {
+  const { TikTokLiveClient, EventType } = await import('piratetok-live-js');
+
+  const connect = async () => {
+    if (shuttingDown) return;
+    const tiktok = new TikTokLiveClient(username).maxRetries(5);
+    let reconnectScheduled = false;
+
+    const reconnect = (reason: string, offline = false) => {
+      if (shuttingDown || reconnectScheduled) return;
+      reconnectScheduled = true;
+      const wait = offline ? 30_000 : backoff(ttAttempt++, TT_BACKOFF_MIN, TT_BACKOFF_MAX);
+      console.warn(`[tiktok:piratetok] ${reason}, reconnecting in ${Math.round(wait / 1000)}s`);
+      setTimeout(() => { void connect(); }, wait);
+    };
+
+    tiktok.on(EventType.gift, (data: any) => guard('gift', () => handleGift(data)));
+    tiktok.on(EventType.follow, (data: any) => guard('follow', () => handleFollow(data)));
+    tiktok.on(EventType.like, (data: any) => guard('like', () => handleLike(data)));
+    tiktok.on(EventType.connected, (state: any) => {
+      ttAttempt = 0;
+      console.log(`[tiktok:piratetok] connected to @${username}, roomId ${state?.roomId}`);
+    });
+    tiktok.on(EventType.reconnecting, (state: any) => {
+      console.warn(`[tiktok:piratetok] connection dropped; internal retry ${state?.attempt}/${state?.maxRetries}` +
+        ` in ${Math.round(Number(state?.delayMs ?? 0) / 1000)}s`);
+    });
+    tiktok.on(EventType.disconnected, () => reconnect('disconnected after internal retries'));
+    tiktok.on('error', (e: any) => console.error('[tiktok:piratetok] error:', e?.message ?? e));
+
+    try {
+      // PirateTok keeps this promise open for the lifetime of the websocket and handles
+      // several reconnects internally. Its disconnected event schedules our longer retry.
+      await tiktok.connect();
+    } catch (err: any) {
+      const offline = /offline|not.*live|host.*online/i.test(`${err?.constructor?.name ?? ''} ${err?.message ?? ''}`);
+      reconnect(offline ? `@${username} is not live` : `connect failed: ${err?.message ?? err}`, offline);
+    }
+  };
+
+  await connect();
+}
+
+async function liveEulerMode(username: string) {
   const lib = await import('tiktok-live-connector');
   const { TikTokLiveConnection, WebcastEvent, ControlEvent, SignConfig } = lib;
 
-  // No key still works: Euler signs at free community rate limits, a key just raises them.
+  // A blank key is still accepted by the library, but Euler controls which routes and
+  // limits are available to anonymous/community users and may require a paid plan.
   if (EULER_API_KEY) SignConfig.apiKey = EULER_API_KEY;
-  else console.warn('[tiktok] no EULER_API_KEY, using free community sign limits');
-
-  await connectRcon();
-
-  console.log(`[likes] creeper effects start ${likeCreepersEnabled ? 'ON' : 'OFF'} for this run`);
-  console.log('[likes] terminal controls: likes off | likes on | likes status');
-  if (process.stdin.isTTY) {
-    const controls = readline.createInterface({ input: process.stdin, output: process.stdout });
-    controls.on('line', (line) => {
-      if (line.trim() && !runLikeControl(line)) {
-        console.log('[controls] unknown command; use likes off, likes on, or likes status');
-      }
-    });
-  }
+  else console.warn('[tiktok:euler] no EULER_API_KEY; Euler may reject this route');
 
   const connect = async () => {
     if (shuttingDown) return;
@@ -919,6 +980,26 @@ async function liveMode(username: string) {
   };
 
   await connect();
+}
+
+async function liveMode(username: string, provider: TikTokProvider) {
+  await connectRcon();
+
+  console.log(`[tiktok] provider: ${provider}`);
+  console.log(`[likes] creeper effects start ${likeCreepersEnabled ? 'ON' : 'OFF'} for this run`);
+  console.log('[likes] terminal controls: likes off | likes on | likes status');
+  if (process.stdin.isTTY) {
+    const controls = readline.createInterface({ input: process.stdin, output: process.stdout });
+    controls.on('line', (line) => {
+      if (line.trim() && !runLikeControl(line)) {
+        console.log('[controls] unknown command; use likes off, likes on, or likes status');
+      }
+    });
+  }
+
+  return provider === 'piratetok'
+    ? livePirateTokMode(username)
+    : liveEulerMode(username);
 }
 
 
@@ -1002,7 +1083,7 @@ function diffCatalog(before: CatalogGiftEntry[], after: CatalogGiftEntry[]) {
 async function catalogMode(username: string, outPath: string, regionOverride: string) {
   const { TikTokLiveConnection, SignConfig } = await import('tiktok-live-connector');
   if (EULER_API_KEY) SignConfig.apiKey = EULER_API_KEY;
-  else console.warn('[catalog] no EULER_API_KEY, using free community sign limits');
+  else console.warn('[catalog] no EULER_API_KEY; Euler may reject the gift-catalog route');
 
   // Whatever is already at the output path, for the diff and for the region default.
   let previous: any = null;
@@ -1401,7 +1482,7 @@ const argAfter = (flag: string) => {
 // silently ran the wrong mode with no clue that it had. Both stop here now.
 const KNOWN_FLAGS = new Set([
   '--test', '--spy', '--replay', '--verify', '--keys', '--catalog',
-  '--dry', '--singleplayer', '--no-likes', '--user', '--out', '--region', '--help', '-h',
+  '--dry', '--singleplayer', '--no-likes', '--user', '--provider', '--out', '--region', '--help', '-h',
 ]);
 
 function usage() {
@@ -1424,6 +1505,10 @@ Flags:
                    Start with like-triggered creepers disabled. Toggle live by typing
                    likes off, likes on, or likes status in the bridge terminal.
   --user <name>    Override TIKTOK_USER for live mode.
+  --provider <name>
+                   TikTok event source: piratetok (free, no API key) or euler
+                   (original tiktok-live-connector route). Defaults to TIKTOK_PROVIDER,
+                   then euler for backwards compatibility.
   --out <path>     Where --catalog writes. Defaults to the file --keys reads.
   --region <code>  Region code to stamp on a catalog. Defaults to the existing file's.
   --help, -h       This text.
@@ -1485,6 +1570,16 @@ if (require.main === module) {
     process.exit(0);
   }
 
+  if (args.includes('--provider') && !argPath('--provider')) {
+    configError('--provider needs a value: piratetok or euler.');
+  }
+  let tiktokProvider: TikTokProvider;
+  try {
+    tiktokProvider = normalizeTikTokProvider(argPath('--provider') ?? TIKTOK_PROVIDER);
+  } catch (err: any) {
+    configError(err?.message ?? String(err));
+  }
+
   // --keys reads a saved catalog, --spy only records payloads, and --catalog only reads
   // the gift panel. None of them sends a command, so none needs to know who the player is.
   if (MODE !== 'keys' && MODE !== 'spy' && MODE !== 'catalog' && !MC_PLAYER) {
@@ -1505,9 +1600,9 @@ if (require.main === module) {
     : MODE === 'catalog' ? catalogMode(catalogUser, argPath('--out') ?? CATALOG_DEFAULT, argPath('--region') ?? '')
     : MODE === 'verify' ? verifyMode()
     : MODE === 'test'   ? testMode()
-    : MODE === 'spy'    ? spyMode(argAfter('--spy')!)
+    : MODE === 'spy'    ? spyMode(argAfter('--spy')!, tiktokProvider)
     : MODE === 'replay' ? replayMode(argAfter('--replay')!)
-    : liveMode(liveUser);
+    : liveMode(liveUser, tiktokProvider);
 
   run.catch((e) => {
     console.error('fatal:', e?.message ?? e);

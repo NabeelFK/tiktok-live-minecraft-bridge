@@ -187,30 +187,51 @@ Also useful:
 
 Both reduce console and chat noise.
 
-## 7. Euler Stream, for the TikTok half
+## 7. Choose the TikTok provider
 
-TikTok does not publish an API for LIVE gift events. The library this project uses
-connects to TikTok's internal webcast websocket, and that connection requires a **signed**
-handshake: a signature TikTok's own web player generates, which cannot be produced from
-outside. [Euler Stream](https://www.eulerstream.com/) is a third-party service that
-produces those signatures, and it is what makes live mode possible at all.
+TikTok does not publish a general public API for LIVE gift events, so both choices are
+unofficial connectors to TikTok's internal webcast protocol. They produce the same gift,
+follow and like events for the bridge; the provider changes only how those events arrive.
 
-You do not strictly need an account. Signing works without a key at free community rate
-limits, and the bridge warns you when it is running without one. A key raises the limits.
+### PirateTok: free and keyless
 
-If you want one: sign up at [eulerstream.com](https://www.eulerstream.com/), take the
-**Community** tier - free, 2,500 requests a day and 25 cloud websockets, which is far more
-than one stream uses - and put the key in `.env` as `EULER_API_KEY`. Paid tiers exist for
-people running many connections at once; a single streamer does not need them.
+[`piratetok-live-js`](https://github.com/PirateTok/live-js) connects directly and does
+not need an API account, API key or signing subscription. Put this in `.env`:
 
-Prices and limits are Euler Stream's to change. Check
-[their pricing page](https://www.eulerstream.com/pricing) rather than this paragraph.
+```properties
+TIKTOK_PROVIDER=piratetok
+```
+
+This is the recommended starting point for a personal stream. It is also a young
+reverse-engineered project, not a guaranteed service. TikTok changes can break it.
+
+### Euler Stream: original route
+
+The original [`tiktok-live-connector`](https://github.com/zerodytrash/TikTok-Live-Connector)
+route remains available:
+
+```properties
+TIKTOK_PROVIDER=euler
+EULER_API_KEY=your-key
+```
+
+[Euler Stream](https://www.eulerstream.com/) controls its plans, route access, rate
+limits and pricing. Check [its current pricing page](https://www.eulerstream.com/pricing)
+instead of assuming the Community plan supports the connector route you need.
+
+For a one-off override without editing `.env`, add `--provider piratetok` or
+`--provider euler` to live mode or `--spy`.
+
+`--catalog` is the one exception: PirateTok supplies the real-time events needed by the
+bridge but does not currently expose the room's full gift panel, so catalog refreshes
+still use the original Euler-backed connector. The saved catalog and offline `--keys`
+check continue to work regardless of the live provider.
 
 ## 8. Configuration: the `.env` file
 
-The bridge reads four values and hardcodes none of them: `MC_PLAYER`, `TIKTOK_USER`,
-`RCON_PASSWORD` and `EULER_API_KEY`. `.env.example` is the full list with a note on
-each one.
+The bridge reads five values and hardcodes none of them: `MC_PLAYER`, `TIKTOK_USER`,
+`TIKTOK_PROVIDER`, `RCON_PASSWORD` and `EULER_API_KEY`. `.env.example` is the full list
+with a note on each one.
 
 ### The normal way: create a `.env`
 
@@ -220,7 +241,8 @@ In the repo folder:
 cp .env.example .env
 ```
 
-(`copy .env.example .env` in cmd.exe.) Open the copy, fill in the four values, save it.
+(`copy .env.example .env` in cmd.exe.) Open the copy, fill in the values needed by the
+Minecraft route and TikTok provider you chose, then save it.
 
 That is the entire configuration step. The bridge loads that file itself on startup, in
 every mode, so there is no flag to pass and nothing to remember. It also persists: a
@@ -231,9 +253,9 @@ shell variables are bad at.
 never leave it open on stream. `RCON_PASSWORD` is a real credential for a server on
 your machine, and `EULER_API_KEY` is a real API key.
 
-Fill in what you have. `MC_PLAYER` and `RCON_PASSWORD` are the two that matter for
-everything except `--keys`; `TIKTOK_USER` only matters when you go live, and
-`EULER_API_KEY` can stay blank.
+Fill in what you have. `MC_PLAYER` and `RCON_PASSWORD` are the two that matter for the
+Paper route; `TIKTOK_USER` matters when you go live. `EULER_API_KEY` can stay blank when
+`TIKTOK_PROVIDER=piratetok`.
 
 ### The alternative: shell variables
 
@@ -243,6 +265,7 @@ override. PowerShell, for the current window only:
 ```powershell
 $env:MC_PLAYER = "YourExactName"
 $env:TIKTOK_USER = "yourhandle"
+$env:TIKTOK_PROVIDER = "piratetok"
 $env:RCON_PASSWORD = "the-password-from-server-properties"
 ```
 
@@ -356,9 +379,15 @@ valid; then check the name.
 **Gifts arrive but the wrong effect fires** - your region's catalog differs from the one
 shipped here. Refresh it with `--catalog` while you are live, then run `--keys`.
 
-**Live mode says the route is paid-tier only** - Euler Stream is refusing the request on
-the free tier. This does not fix itself by retrying; the bridge stops rather than burning
-your rate limit.
+**Live mode says the route is paid-tier only** - the Euler provider is refusing the
+request on the current plan. Switch to the free connector with `--provider piratetok`
+(or set `TIKTOK_PROVIDER=piratetok` in `.env`). Retrying the Euler request does not fix a
+plan restriction.
+
+**PirateTok connects poorly or stops receiving events** - it is an unofficial, young
+connector and TikTok may have changed the internal protocol. Run `--spy <your-handle>
+--provider piratetok` to inspect it, then temporarily switch back with `--provider euler`
+if that route is available to you.
 
 **Nothing arrives during a real stream** - confirm you are actually live and that gifts
 are enabled on your account, then run `--spy <your-handle>` from another machine or after

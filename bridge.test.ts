@@ -31,6 +31,7 @@ import {
   likeCreeperCommands,
   likeThresholdsCrossed,
   normalizeCatalogGifts,
+  normalizeTikTokProvider,
   pendingStageSummary,
   parseLikeControl,
   resolve,
@@ -60,6 +61,16 @@ const bannerOf = (cmds: string[]): string => {
 
 const C = String.fromCharCode;
 const P = String.fromCodePoint;
+
+// ------------------------------------------------------- TikTok provider selection
+
+test('TikTok provider keeps Euler compatible and accepts the free connector', () => {
+  assert.equal(normalizeTikTokProvider(), 'euler');
+  assert.equal(normalizeTikTokProvider('EULER'), 'euler');
+  assert.equal(normalizeTikTokProvider('piratetok'), 'piratetok');
+  assert.equal(normalizeTikTokProvider('free'), 'piratetok');
+  assert.throws(() => normalizeTikTokProvider('unknown'), /piratetok or euler/);
+});
 
 // ------------------------------------------------------ single-player transport
 

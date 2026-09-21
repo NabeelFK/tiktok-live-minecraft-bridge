@@ -55,11 +55,16 @@ Type `follow tester`, `likes 100`, or a gift name. The command should happen in 
 world exactly as it does through RCON. Run the real stream with:
 
 ```powershell
-npx tsx bridge.ts --singleplayer
+npx tsx bridge.ts --singleplayer --provider piratetok
 ```
 
-The equivalent npm shortcuts are `npm run sandbox-singleplayer` and
-`npm run live-singleplayer`.
+That uses the free, keyless PirateTok event source. Set `TIKTOK_PROVIDER=piratetok` in
+`.env` to make `npx tsx bridge.ts --singleplayer` equivalent. The original Euler route
+remains available with `--provider euler`.
+
+The npm shortcuts are `npm run sandbox-singleplayer`,
+`npm run live-singleplayer-free`, and `npm run live-singleplayer` (which uses the
+provider from `.env`, or Euler when an older `.env` has no provider setting).
 
 When Chunk Randomizer is installed, its challenge starts separately with `/rc start`.
 
